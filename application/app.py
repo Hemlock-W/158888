@@ -57,10 +57,41 @@ if data_ok:
                                                                        names=["Date", "Count"])
     rcvs_tables["TableA.csv"] = loader.promote_first_row_to_header(df=rcvs_tables["TableA.csv"])
     rcvs_tables["TableB.csv"] = loader.promote_first_row_to_header(df=rcvs_tables["TableB.csv"])
+    rcvs_tables["Trend AEG.csv"] = loader.to_date(rcvs_tables["Trend AEG.csv"], "Date")
     for df_name, df in rcvs_tables.items():
         rcvs_tables[df_name] = loader.clean_count_columns(df=df)
+
+    # Clean data - RCOS
+    rcos_tables["Boundary bar AEG.csv"] = loader.rename_column(df=rcos_tables["Boundary bar AEG.csv"], 
+                                                                cols=["Police Districts", "Unnamed: 1"],
+                                                                names=["Police District", "Count"])
+    rcos_tables["ANSOC Bar AEG.csv"] = loader.rename_column(df=rcos_tables["ANSOC Bar AEG.csv"], 
+                                                                    cols=["Unnamed: 1"],
+                                                                    names=["Count"])
+    rcos_tables["Trend AEG.csv"] = loader.rename_column(df=rcos_tables["Trend AEG.csv"], 
+                                                                        cols=["Month of Year Month", "Unnamed: 1"],
+                                                                        names=["Date", "Count"])
+    rcos_tables["Ethnicity AES.csv"] = loader.rename_column(df=rcos_tables["Ethnicity AES.csv"], 
+                                                                            cols=[f"% of Total Proceedings along Ethnic Group", "Proceedings"],
+                                                                            names=["Percentage of Proceedings", "Count"])
+    rcos_tables["TableA.csv"] = loader.promote_first_row_to_header(df=rcos_tables["TableA.csv"])
+    rcos_tables["TableB.csv"] = loader.promote_first_row_to_header(df=rcos_tables["TableB.csv"])
+    rcos_tables["Trend AEG.csv"] = loader.to_date(rcos_tables["Trend AEG.csv"], "Date", formatting=f"%b%Y")
+    rcos_tables["Age and Sex AES.csv"] = loader.add_header_row(rcos_tables["Age and Sex AES.csv"], ["Age", "Count"])
+    for df_name, df in rcos_tables.items():
+        rcos_tables[df_name] = loader.clean_count_columns(df=df)
+
+    # Clean data - Activity and Report
+    activity_tables["Boundary Districts.csv"] = loader.promote_first_row_to_header(df=activity_tables["Boundary Districts.csv"])
+    activity_tables["Boundary Districts.csv"] = activity_tables["Boundary Districts.csv"].fillna(0)
+    activity_tables["Occ Type.csv"] = loader.promote_first_row_to_header(df=activity_tables["Occ Type.csv"])
+    activity_tables["Occ Type.csv"] = activity_tables["Occ Type.csv"].fillna(0) 
+    activity_tables["TableA.csv"] = loader.promote_first_row_to_header(df=activity_tables["TableA.csv"])
+    activity_tables["TableB.csv"] = loader.promote_first_row_to_header(df=activity_tables["TableB.csv"])
+    for df_name, df in activity_tables.items():
+        activity_tables[df_name] = loader.clean_count_columns(df=df)
     
-    table_a = rcvs_tables["TableA.csv"]
+    table_a = rcos_tables["TableA.csv"]
 
     st.dataframe(
             table_a.head(5).style.format(precision=2),

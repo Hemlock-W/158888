@@ -1,6 +1,22 @@
 import pandas as pd
 import streamlit as st
+import dateparser
 import re
+
+_COMMA_NUMBER_RE = re.compile(r"^-?\d{1,3}(,\d{3})*(\.\d+)?$")
+
+def comma_number(value) -> bool:
+    if pd.isna(value):
+        return True  # missing values don't disqualify the column
+    return bool(_COMMA_NUMBER_RE.match(str(value).strip()))
+def clean_count_column(series: pd.Series) -> pd.Series:
+        cleaned = (
+            series.astype(str)
+            .str.replace(",", "", regex=False)
+            .str.strip()
+            .replace({"": None, "nan": None, "None": None})
+        )
+        return pd.to_numeric(cleaned, errors="coerce").astype("Int64")
 
 class DataLoader:
     def __init__(
@@ -48,7 +64,7 @@ class DataLoader:
         return self._fetch_csvs(self.activity_subdir, self.activity_filenames)
 
 
-    def rename_column(_self, df:pd.DataFrame, cols:list[str], names:list[str]):
+    def rename_column(_self, df:pd.DataFrame, cols:list[str], names:list[str]) -> pd.DataFrame:
         if len(cols) != len(names):
             raise ValueError(
                 f"cols and names must be the same length (got {len(cols)} and {len(names)})"
@@ -56,21 +72,18 @@ class DataLoader:
         rename_map = dict(zip(cols, names))
         return df.rename(columns=rename_map)
 
-    def clean_count_column(_self, series: pd.Series) -> pd.Series:
-        """Convert a 'Count' column of strings like '10,000' into integers.
-        Uses pandas' nullable Int64 dtype so missing/blank values become <NA>
-        instead of raising or forcing a fallback to float."""
-        cleaned = (
-            series.astype(str)
-            .str.replace(",", "", regex=False)
-            .str.strip()
-            .replace({"": None, "nan": None, "None": None})
-        )
-        return pd.to_numeric(cleaned, errors="coerce").astype("Int64")
-    def clean_count_columns(_self, df:pd.DataFrame):
+    
+    def clean_count_columns(_self, df:pd.DataFrame) -> pd.DataFrame:
+        """Convert data like 10,000 into int"""
         for col in df.columns:
-            if col.strip().lower() == "count":
-                df[col] = _self.clean_count_column(df[col])
+            if df[col].dtype != object:
+                continue
+            non_null = df[col].dropna()
+            if non_null.empty:
+                continue
+            match_ratio = non_null.apply(comma_number).mean()
+            if match_ratio >= 0.9:
+                df[col] = clean_count_column(df[col])
         return df
 
     def promote_first_row_to_header(_self, df:pd.DataFrame) -> pd.DataFrame:
@@ -78,9 +91,22 @@ class DataLoader:
         df = df.copy()
         df.columns = df.iloc[0].astype(str).str.strip()
         df = df.iloc[1:].reset_index(drop=True)
-        df.columns.name = None  # cosmetic: drops the leftover index name pandas sometimes carries over
+        df.columns.name = None
         return df
 
+    def to_date(_self, df:pd.DataFrame, col, formatting="%B %Y") -> pd.DataFrame:
+        df[col] = df[col].apply(dateparser.parse)
+        df[col] = pd.to_datetime(df[col], format=formatting)
+        return df
+
+    def add_header_row(_self, df:pd.DataFrame, col) -> pd.DataFrame:
+        """Move values from header to row 0, then add header row"""
+        df.loc[-1] = df.columns
+        df.index = df.index + 1
+        df = df.sort_index()
+        df.columns = col
+        return df
+    
     def print_statement(_self, tables):
         for df_name, df in tables.items():
-            st.markdown(df.describe())
+            st.markdown(df.info())
