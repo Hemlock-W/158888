@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 from data_loader import DataLoader
+from forecasting import run_forecast_pipeline
 
 st.set_page_config(
     page_title="NZ Crime Rate Forcasting",
@@ -25,6 +26,21 @@ st.markdown("""
     .stDataFrame { background-color: #161b22; }
 </style>
 """, unsafe_allow_html=True)
+
+def run_forecasting(df, id_col, 
+                    partial_year:int=2026, # current-year column that's not a full year yet
+                    months_elapsed:int=7, # current-year column that's not a full year yet
+                    n_years_ahead:int=2 # forecast both 2026 (full-year) and 2027
+                    ):
+    raw = rcvs_tables["TableA.csv"]
+    results = run_forecast_pipeline(
+        raw,
+        partial_year=partial_year,      
+        months_elapsed=months_elapsed,   
+        n_years_ahead=n_years_ahead,        
+    )
+
+    return results
 
 # - App layout -
 st.title("NZ Crime Rate Forecasting")
@@ -88,13 +104,21 @@ if data_ok:
     activity_tables["Occ Type.csv"] = activity_tables["Occ Type.csv"].fillna(0) 
     activity_tables["TableA.csv"] = loader.promote_first_row_to_header(df=activity_tables["TableA.csv"])
     activity_tables["TableB.csv"] = loader.promote_first_row_to_header(df=activity_tables["TableB.csv"])
+    activity_tables["TableA.csv"] = loader.rename_column(df=activity_tables["TableA.csv"], 
+                                                                    cols=["Police District/Region"],
+                                                                    names=["Police District"])
     for df_name, df in activity_tables.items():
         activity_tables[df_name] = loader.clean_count_columns(df=df)
     
-    table_a = rcos_tables["TableA.csv"]
+    
+    # Forecast Result
+    rcvs_tableA_results = run_forecasting(rcvs_tables["TableA.csv"], id_col="Police District")
+    rcvs_tableB_results = run_forecasting(rcvs_tables["TableB.csv"], id_col="Anzsoc Division")
+    rcos_tableA_results = run_forecasting(rcos_tables["TableA.csv"], id_col="Police District")
+    rcos_tableB_results = run_forecasting(rcos_tables["TableB.csv"], id_col="Anzsoc Division")
 
     st.dataframe(
-            table_a.head(5).style.format(precision=2),
+            activity_tables["TableA.csv"] .head(5).style.format(precision=2),
             use_container_width=True,
             height=420,
         )
