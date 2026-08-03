@@ -32,9 +32,10 @@ def run_forecasting(df, id_col,
                     months_elapsed:int=7, # current-year column that's not a full year yet
                     n_years_ahead:int=2 # forecast both 2026 (full-year) and 2027
                     ):
-    raw = rcvs_tables["TableA.csv"]
+    
     results = run_forecast_pipeline(
-        raw,
+        df,
+        id_col=id_col,
         partial_year=partial_year,      
         months_elapsed=months_elapsed,   
         n_years_ahead=n_years_ahead,        
@@ -107,18 +108,21 @@ if data_ok:
     activity_tables["TableA.csv"] = loader.rename_column(df=activity_tables["TableA.csv"], 
                                                                     cols=["Police District/Region"],
                                                                     names=["Police District"])
+    activity_tables["TableA.csv"].columns = list(activity_tables["TableA.csv"].columns[:1]) + list(pd.to_datetime(activity_tables["TableA.csv"].columns[1:]))
     for df_name, df in activity_tables.items():
         activity_tables[df_name] = loader.clean_count_columns(df=df)
     
     
     # Forecast Result
-    rcvs_tableA_results = run_forecasting(rcvs_tables["TableA.csv"], id_col="Police District")
-    rcvs_tableB_results = run_forecasting(rcvs_tables["TableB.csv"], id_col="Anzsoc Division")
-    rcos_tableA_results = run_forecasting(rcos_tables["TableA.csv"], id_col="Police District")
-    rcos_tableB_results = run_forecasting(rcos_tables["TableB.csv"], id_col="Anzsoc Division")
+    # rcvs_tableA_results = run_forecasting(rcvs_tables["TableA.csv"], id_col="Police District")
+    # rcvs_tableB_results = run_forecasting(rcvs_tables["TableB.csv"], id_col="ANZSOC Division")
+    # rcos_tableA_results = run_forecasting(rcos_tables["TableA.csv"], id_col="Police District")
+    # rcos_tableB_results = run_forecasting(rcos_tables["TableB.csv"], id_col="Anzsoc Division")
+    # activity_tableA_results = run_forecasting(activity_tables["TableA.csv"], id_col="Police District", n_years_ahead=6)
+    activity_tableB_results = run_forecasting(activity_tables["TableB.csv"], id_col="Occurrence Type Category", n_years_ahead=6)
 
     st.dataframe(
-            activity_tables["TableA.csv"] .head(5).style.format(precision=2),
+            activity_tableB_results["long_df"] .head(5).style.format(precision=2),
             use_container_width=True,
             height=420,
         )
