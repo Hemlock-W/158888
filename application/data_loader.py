@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import dateparser
 import re
+import numpy as np
 
 _COMMA_NUMBER_RE = re.compile(r"^-?\d{1,3}(,\d{3})*(\.\d+)?$")
 
@@ -72,18 +73,17 @@ class DataLoader:
         rename_map = dict(zip(cols, names))
         return df.rename(columns=rename_map)
 
-    
     def clean_count_columns(_self, df:pd.DataFrame) -> pd.DataFrame:
         """Convert data like 10,000 into int"""
         for col in df.columns:
-            if df[col].dtype != object:
-                continue
+            # if df[col].dtype != object:
+            #     continue
             non_null = df[col].dropna()
             if non_null.empty:
                 continue
             match_ratio = non_null.apply(comma_number).mean()
             if match_ratio >= 0.9:
-                df[col] = clean_count_column(df[col])
+                df[col] = clean_count_column(df[col]) 
         return df
 
     def promote_first_row_to_header(_self, df:pd.DataFrame) -> pd.DataFrame:

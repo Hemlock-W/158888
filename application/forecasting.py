@@ -7,7 +7,6 @@ next year's count per district (plus the national total).
 from __future__ import annotations
 
 import re
-import streamlit as st
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
@@ -17,13 +16,11 @@ def parse_period(col: str):
     col = str(col).strip()
 
     if re.fullmatch(r"\d{4}", col):
-        print(col)
         return pd.Period(col, freq="Y"), "Y"
     else:
         try:
             return pd.Period(col, freq="M"), "M"
         except (ValueError, TypeError):
-            print("Unexpected col: " + col)
             pass
 
     return None, None

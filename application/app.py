@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import locale
+locale.setlocale(locale.LC_ALL, "C")
 
 from data_loader import DataLoader
 from forecasting import run_forecast_pipeline
@@ -112,17 +114,16 @@ if data_ok:
     for df_name, df in activity_tables.items():
         activity_tables[df_name] = loader.clean_count_columns(df=df)
     
-    
     # Forecast Result
     # rcvs_tableA_results = run_forecasting(rcvs_tables["TableA.csv"], id_col="Police District")
     # rcvs_tableB_results = run_forecasting(rcvs_tables["TableB.csv"], id_col="ANZSOC Division")
     # rcos_tableA_results = run_forecasting(rcos_tables["TableA.csv"], id_col="Police District")
     # rcos_tableB_results = run_forecasting(rcos_tables["TableB.csv"], id_col="Anzsoc Division")
-    # activity_tableA_results = run_forecasting(activity_tables["TableA.csv"], id_col="Police District", n_years_ahead=6)
-    activity_tableB_results = run_forecasting(activity_tables["TableB.csv"], id_col="Occurrence Type Category", n_years_ahead=6)
+    activity_tableA_results = run_forecasting(activity_tables["TableA.csv"], id_col="Police District", n_years_ahead=6)
+    # activity_tableB_results = run_forecasting(activity_tables["TableB.csv"], id_col="Occurrence Type Category", n_years_ahead=6)
 
     st.dataframe(
-            activity_tableB_results["long_df"] .head(5).style.format(precision=2),
+            activity_tableA_results['long_df'],
             use_container_width=True,
             height=420,
         )
