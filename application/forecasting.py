@@ -26,9 +26,7 @@ def parse_period(col: str):
     return None, None
 
 
-# --------------------------------------------------------------------------
 # 1. Reshape: wide (district x year columns) -> long (district, year, count)
-# --------------------------------------------------------------------------
 def wide_to_long(df: pd.DataFrame, id_col: str="Police District") -> pd.DataFrame:
     period_cols, periods, freq = [], [], None
     for col in df.columns:
@@ -77,35 +75,77 @@ def annualize_partial_year(
     else:
         raise ValueError("method must be 'exclude' or 'scale'")
 
-
-# --------------------------------------------------------------------------
-# 3. Lag features (per district, since each district is its own series)
-# --------------------------------------------------------------------------
-def make_lag_features(long_df: pd.DataFrame, lags=(1, 2)) -> pd.DataFrame:
-    freq = long_df.attrs.get("freq", "M")
-    if freq == "M":
-        lags = (1, 2, 3, 12)
-
-    long_df = long_df.sort_values(["district", "period"]).copy()
-    grouped = long_df.groupby("district")["count"]
-
+def build_features(df: pd.DataFrame, freq: str = "M") -> pd.DataFrame:
+    df = df.copy()
+ 
+    lags = [1, 2, 3, 6, 12] if freq == "M" else [1, 2, 3]
+    windows = [3, 6, 12] if freq == "M" else [2, 3]
+    seasonal_lag = 12 if freq == "M" else None
+ 
     for lag in lags:
-        long_df[f"lag_{lag}"] = grouped.shift(lag)
-
-    long_df["yoy_diff"] = grouped.diff(1)
-    long_df["yoy_pct_change"] = grouped.pct_change(1)
-
+        df[f"lag_{lag}"] = df["count"].shift(lag)
+ 
+    df["diff_1"] = df["count"].diff(1)
+    if seasonal_lag:
+        df[f"diff_{seasonal_lag}"] = df["count"].diff(seasonal_lag)
+ 
+    for window in windows:
+        df[f"rolling_mean_{window}"] = df["count"].shift(1).rolling(window).mean()
+        df[f"rolling_std_{window}"] = df["count"].shift(1).rolling(window).std()
+        df[f"rolling_min_{window}"] = df["count"].shift(1).rolling(window).min()
+        df[f"rolling_max_{window}"] = df["count"].shift(1).rolling(window).max()
+ 
+    max_window = windows[-1]
+    df[f"lag1_vs_roll{max_window}"] = df["lag_1"] / (df[f"rolling_mean_{max_window}"] + 1e-6)
+    if seasonal_lag:
+        df[f"lag{seasonal_lag}_vs_roll{max_window}"] = (
+            df[f"lag_{seasonal_lag}"] / (df[f"rolling_mean_{max_window}"] + 1e-6)
+        )
+ 
+    if isinstance(df["period"].dtype, pd.PeriodDtype):
+        period_dt = df["period"]
+    else:
+        period_dt = pd.PeriodIndex(df["period"], freq=freq)
+    df["year"] = period_dt.year if hasattr(period_dt, "year") else period_dt.dt.year
+ 
     if freq == "M":
-        long_df["yoy_diff"] = grouped.diff(12)
-        long_df["yoy_pct_change"] = grouped.pct_change(12)
+        month = period_dt.month if hasattr(period_dt, "month") else period_dt.dt.month
+        df["month"] = month
+        # Cyclical encoding avoids an artificial Dec->Jan discontinuity
+        df["month_sin"] = np.sin(2 * np.pi * df["month"] / 12)
+        df["month_cos"] = np.cos(2 * np.pi * df["month"] / 12)
+ 
+    df["time_idx"] = np.arange(len(df))
+ 
+    if seasonal_lag:
+        df["yoy_ratio"] = df["count"] / (df[f"lag_{seasonal_lag}"] + 1e-6)
+ 
+    return df
+ 
+ 
+def get_feature_cols(df: pd.DataFrame) -> list:
+    # diff_1/diff_12 (and similar) are computed as *current* count minus a
+    # past count, leaking data
+    exclude = {"district", "count", "period", "date", "yoy_ratio"}
+    exclude |= {c for c in df.columns if c.startswith("diff_")}
+    return [c for c in df.columns if c not in exclude]
+ 
+ 
+def make_lag_features(long_df: pd.DataFrame) -> pd.DataFrame:
+    freq = long_df.attrs.get("freq", "Y")
+    long_df = long_df.sort_values(["district", "period"]).copy()
+ 
+    pieces = [
+        build_features(group.reset_index(drop=True), freq=freq)
+        for _, group in long_df.groupby("district", sort=False)
+    ]
+    result = pd.concat(pieces, ignore_index=True)
+    result.attrs["freq"] = freq
+    return result
+ 
 
-    long_df.attrs["freq"] = freq
-    return long_df
 
-
-# --------------------------------------------------------------------------
 # 4. Forecast next year per district
-# --------------------------------------------------------------------------
 def forecast_next_year(
     long_df: pd.DataFrame,
     n_periods_ahead: int = 1,
@@ -166,17 +206,17 @@ def run_forecast_pipeline(
     long_df = wide_to_long(raw_df, id_col=id_col)
     freq = long_df.attrs.get("freq", "Y")
 
-    if partial_year is not None and months_elapsed is not None:
-        long_df = annualize_partial_year(long_df, partial_year, months_elapsed, method="exclude")
+    # if partial_year is not None and months_elapsed is not None:
+    #     long_df = annualize_partial_year(long_df, partial_year, months_elapsed, method="exclude")
 
     long_df = make_lag_features(long_df)
 
-    district_forecast = forecast_next_year(long_df, n_periods_ahead=n_years_ahead)
-    national_forecast = forecast_national_total(long_df, n_years_ahead=n_years_ahead)
+    # district_forecast = forecast_next_year(long_df, n_periods_ahead=n_years_ahead)
+    # national_forecast = forecast_national_total(long_df, n_years_ahead=n_years_ahead)
 
     return {
         "long_df": long_df,
-        "district_forecast": district_forecast,
-        "national_forecast": national_forecast,
+        # "district_forecast": district_forecast,
+        # "national_forecast": national_forecast,
         "freq": freq,
     }

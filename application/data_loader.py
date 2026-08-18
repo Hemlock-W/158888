@@ -6,11 +6,11 @@ import numpy as np
 
 _COMMA_NUMBER_RE = re.compile(r"^-?\d{1,3}(,\d{3})*(\.\d+)?$")
 
-def comma_number(value) -> bool:
+def _comma_number(value) -> bool:
     if pd.isna(value):
         return True  # missing values don't disqualify the column
     return bool(_COMMA_NUMBER_RE.match(str(value).strip()))
-def clean_count_column(series: pd.Series) -> pd.Series:
+def _clean_count_column(series: pd.Series) -> pd.Series:
         cleaned = (
             series.astype(str)
             .str.replace(",", "", regex=False)
@@ -81,9 +81,9 @@ class DataLoader:
             non_null = df[col].dropna()
             if non_null.empty:
                 continue
-            match_ratio = non_null.apply(comma_number).mean()
+            match_ratio = non_null.apply(_comma_number).mean()
             if match_ratio >= 0.9:
-                df[col] = clean_count_column(df[col]) 
+                df[col] = _clean_count_column(df[col]) 
         return df
 
     def promote_first_row_to_header(_self, df:pd.DataFrame) -> pd.DataFrame:
