@@ -5,9 +5,10 @@ import locale
 locale.setlocale(locale.LC_ALL, "C")
 
 from data_loader import DataLoader
-from boundary_loader import BoundaryDataLoader
+from boundary_loader import BoundaryDataLoader, _norm
 from forecasting import run_forecast_pipeline
-from model import compare_models, sklearn_forecast, statsmodels_forecast, prophet_forecast
+from model import sklearn_forecast, statsmodels_forecast, prophet_forecast
+from visualize import plot_rate_choropleth, plot_rate_matrix
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -272,7 +273,6 @@ if st.session_state["data_ok"] == True:
         st.session_state["build_features"] = forecast_dataset(
             data_choice
         )
-        st.session_state["data_chosen"] = data_choice
 
     # Forecast Result
     
@@ -337,6 +337,7 @@ if st.session_state["data_ok"] == True:
         chosen2 = st.selectbox(
             "Choose a district",
             DISTRICTS_SEL,
+            format_func=lambda x: "New Zealand (Nation)" if x == "Total" else x,
             index=0,
         )
     with select_button:
@@ -350,7 +351,95 @@ if st.session_state["data_ok"] == True:
     if "forecast_result" in st.session_state:
         forecast_result = st.session_state["forecast_result"]
 
+        # Metrics row
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Model", chosen)
+        m2.metric("RMSE", f"{forecast_result['metrics_holdout']['rmse']:,.2f}")
+        m3.metric("Mean Absolute Error", f"{forecast_result['metrics_holdout']['mae']:.2f}")
+        m4.metric("Mean Absolute Percentage Error", f"{forecast_result['metrics_holdout']['mape']:,.2f}")
+
         st.dataframe(
-            forecast_result["forecast"][["date", "forecast_count"]],
-            use_container_width=True,
-        )
+                built_table["rate_per_capita"],
+                use_container_width=True,
+            )
+
+        st.divider()
+        
+        st.header("Prediction Output")
+        tab1, = st.tabs(["Predicted and Actual Over Time"])
+    
+        with tab1:
+            y_actual = built_table["rate_per_capita"].loc[built_table["rate_per_capita"]["district"] == chosen2].copy() 
+            y_pred = forecast_result["forecast"].copy()
+
+            # Convert Period -> Timestamp and Count -> Forecast_count for seamless concat
+            y_actual["date"] = y_actual["period"].dt.to_timestamp()
+            y_actual["forecast_count"] = y_actual["count"]
+            last_actual = y_actual.iloc[-1]
+
+            forecast_plot = pd.concat([
+                y_actual[["date", "forecast_count"]],
+                y_pred[["date", "forecast_count"]]
+            ], join="outer", ignore_index=True)
+
+            fig = go.Figure()
+            # Actual and predicted
+            fig.add_trace(
+                go.Scatter(
+                    x=forecast_plot["date"],
+                    y=forecast_plot["forecast_count"],
+                    mode="lines",
+                    name="Predicted",
+                    line=dict(color="#F83003", width=2),
+                )
+            )
+
+            # Add vertical line to differentiate actual and predicted
+            fig.add_vline(
+                x=last_actual["date"],
+                line_dash="dash",
+                line_color="white",
+            )
+
+            fig.add_vrect(
+                x0=last_actual["date"],
+                x1=forecast_plot["date"].max(),
+                opacity=0.2,
+                fillcolor="lightsalmon",
+                line_width=0,
+                layer="below",
+            )
+
+            fig.update_layout(
+                title=f"Predicted vs Actual Demand Over Time — {chosen}",
+                xaxis_title="Date",
+                yaxis_title="Count",
+                plot_bgcolor="#0e1117",
+                paper_bgcolor="#0e1117",
+                font_color="#e0e0e0",
+                legend=dict(bgcolor="#161b22", bordercolor="#30363d")
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.dataframe(
+                forecast_plot,
+                use_container_width=True,
+            )
+
+    boundary_district = boundary_loader.load_districts()
+    boundary_district = boundary_district.rename(columns={"DISTRICT_N": "district"})
+    boundary_district = boundary_district.replace("Bay of Plenty", "Bay Of Plenty") 
+
+    if data_choice != st.session_state["data_chosen"]:
+        st.session_state["data_chosen"] = data_choice
+        if data_choice == "RCVS":
+            st.session_state["fig"] = plot_rate_matrix(built_table["rate_per_capita"])
+            st.session_state["fig2"] = plot_rate_choropleth(boundary_district, built_table["rate_per_capita"])
+        elif data_choice == "RCOS":
+            st.session_state["fig"] = plot_rate_matrix(built_table["rate_per_capita"], title="Offenders rate per 10,000 people — by district")
+            st.session_state["fig2"] = plot_rate_choropleth(boundary_district, built_table["rate_per_capita"], title="Offenders rate per 10,000 people — by district")
+
+    if "fig" in st.session_state:
+        st.pyplot(st.session_state["fig"])
+        st.pyplot(st.session_state["fig2"])
+   

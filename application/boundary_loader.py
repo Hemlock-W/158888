@@ -91,7 +91,7 @@ class BoundaryDataLoader:
         pop_by_district["population"] = pop_by_district[self.population_col].sum(axis=1)
         pop_by_district.rename(columns={self.district_name_col: "district"}, inplace=True)
         return pop_by_district
-
+        
     def missing_population(
         self, long_df: pd.DataFrame, pop_df: pd.DataFrame,
         drop_labels=("Not Specified",), total_label: str = "Total",
@@ -114,12 +114,12 @@ class BoundaryDataLoader:
         # Sum population for total
         total_key = _norm(total_label)
         total_population = pop_df["population"].mean()
- 
+    
         pop_df = pd.concat(
             [pop_df, pd.DataFrame([{"district": total_label, "population": total_population, "_key": total_key}])],
             ignore_index=True,
         )
- 
+    
         # Merge on the normalized key, keep the original display name
         merged = long_df.merge(pop_df[["_key", "population"]], on="_key", how="left")
         merged = merged.drop(columns=["_key"])
@@ -144,4 +144,5 @@ class BoundaryDataLoader:
 
         merged = self.missing_population(long_df=long_df, pop_df=pop_df)
         merged["rate_per_capita"] = np.round((merged["count"] / merged["population"]) * per, 3)
+
         return merged
