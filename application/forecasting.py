@@ -27,7 +27,7 @@ def parse_period(col: str):
 
 
 # 1. Reshape: wide (district x year columns) -> long (district, year, count)
-def wide_to_long(df: pd.DataFrame, id_col: str="Police District") -> pd.DataFrame:
+def wide_to_long(df: pd.DataFrame, id_col = "Police District") -> pd.DataFrame:
     period_cols, periods, freq = [], [], None
     for col in df.columns:
         period, col_freq = parse_period(col)
@@ -35,10 +35,14 @@ def wide_to_long(df: pd.DataFrame, id_col: str="Police District") -> pd.DataFram
             period_cols.append(col)
             periods.append(period)
             freq = col_freq  # assume a single file is consistently Y or M
- 
+
+    if isinstance(id_col, str):
+        id_vars = [id_col]
+    else:
+        id_vars = list(id_col)
 
     long_df = df.melt(
-        id_vars=[id_col],
+        id_vars=id_vars,
         value_vars=period_cols,
         var_name="period_str",
         value_name="count",
@@ -47,7 +51,10 @@ def wide_to_long(df: pd.DataFrame, id_col: str="Police District") -> pd.DataFram
     period_lookup = dict(zip(period_cols, periods))
     long_df["period"] = long_df["period_str"].map(period_lookup)
     long_df["count"] = pd.to_numeric(long_df["count"], errors="coerce")
-    long_df = long_df.rename(columns={id_col: "district"}).drop(columns=["period_str"])
+    if isinstance(id_col, str):
+        long_df = long_df.rename(columns={id_col: "district"}).drop(columns=["period_str"])
+    else:
+        long_df = long_df.rename(columns={id_vars[0]: "district"}).drop(columns=["period_str"])
     long_df["district"] = long_df["district"].str.strip()
     long_df.attrs["freq"] = freq
     long_df["year"] = long_df["period"].apply(lambda p: p.year)
@@ -198,7 +205,7 @@ def forecast_national_total(long_df: pd.DataFrame, n_years_ahead: int = 1) -> pd
 # --------------------------------------------------------------------------
 def run_forecast_pipeline(
     raw_df: pd.DataFrame,
-    id_col: str = "Police District",
+    id_col = "Police District",
     partial_year: int | None = None,
     months_elapsed: int | None = None,
     n_years_ahead: int = 1,

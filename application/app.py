@@ -1,19 +1,19 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import re
 import locale
 locale.setlocale(locale.LC_ALL, "C")
 
 from data_loader import DataLoader
-from boundary_loader import BoundaryDataLoader, _norm
+from boundary_loader import BoundaryDataLoader
 from forecasting import run_forecast_pipeline
 from model import sklearn_forecast, statsmodels_forecast, prophet_forecast
-from visualize import plot_rate_choropleth, plot_rate_matrix
+from visualize import (plot_rate_choropleth, plot_rate_matrix, 
+                       plot_anzsoc_bar, plot_stacked_bar, 
+                       plot_anzsoc_area, plot_anzsoc_treemap)
 
 import plotly.graph_objects as go
-import plotly.express as px
-import plotly.figure_factory as ff
-import scipy.stats as stats
 
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
@@ -21,7 +21,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVR
-from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import HistGradientBoostingRegressor
 
 st.set_page_config(
@@ -46,29 +45,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def run_forecasting(df, id_col, 
-                    partial_year:int=2026, # current-year column that's not a full year yet
-                    months_elapsed:int=7, # current-year column that's not a full year yet
-                    n_years_ahead:int=2 # forecast both 2026 (full-year) and 2027
-                    ):
+def run_forecasting(df, id_col):
     
-    results = run_forecast_pipeline(
-        df,
-        id_col=id_col,
-        partial_year=partial_year,      
-        months_elapsed=months_elapsed,   
-        n_years_ahead=n_years_ahead,        
-    )
+    results = run_forecast_pipeline(df, id_col=id_col)
 
     return results
 
-@st.cache_data
-def forecast_dataset(dataset_name):
+
+@st.cache_data(show_spinner="Building features")
+def forecast_dataset(dataset_name, id_col="Police District"):
     dataset = DATA_INFO[dataset_name]["dataset"]
-    tableA_results = run_forecasting(dataset, id_col="Police District")
+    tableA_results = run_forecasting(dataset, id_col=id_col)
     tableA_results["rate_per_capita"] = boundary_loader.merge_with_crime_data(long_df=tableA_results["long_df"])
     return tableA_results
-
 
 
 def model_selection(long_df, model_name, district):
@@ -92,13 +81,6 @@ def model_selection(long_df, model_name, district):
             ("rf", RandomForestRegressor(n_estimators=100, random_state=42))
         ])
         forecast_result = sklearn_forecast(long_df=long_df, district=district, model=model, tune=False)
-    elif model_name == "Neural Network Regressor":
-        model = Pipeline([
-            ("scalar", StandardScaler()),
-            ("mlp", MLPRegressor(hidden_layer_sizes=(150, 50, 10), activation='relu', 
-                                solver='adam', max_iter=300))
-        ])
-        forecast_result = sklearn_forecast(long_df=long_df, district=district, model=model, tune=False)
     elif model_name == "Histogram Gradient Boosting Regressor":
         model = Pipeline([
             ("scalar", StandardScaler()),
@@ -115,6 +97,7 @@ def model_selection(long_df, model_name, district):
         forecast_result = sklearn_forecast(long_df=long_df, district=district)
 
     return forecast_result
+
 
 @st.cache_data(show_spinner="Loading and cleaning dataset...")
 def load_data():
@@ -139,71 +122,50 @@ def load_data():
 
     return data_ok, data_cleaned, rcvs_tables, rcos_tables, activity_tables, boundary_loader
 
+
 def clean_dataset(loader:DataLoader, rcvs_tables, rcos_tables, activity_tables):
     try:
         # Clean data - RCVS
-        rcvs_tables["Boundary bar AEG.csv"] = loader.rename_column(df=rcvs_tables["Boundary bar AEG.csv"], 
-                                                                    cols=["Police District/TA", "Unnamed: 1"],
-                                                                    names=["Police District", "Count"])
-        rcvs_tables["ANSOC Bar AEG.csv"] = loader.rename_column(df=rcvs_tables["ANSOC Bar AEG.csv"], 
-                                                                        cols=["Unnamed: 1"],
-                                                                        names=["Count"])
-        rcvs_tables["Trend AEG.csv"] = loader.rename_column(df=rcvs_tables["Trend AEG.csv"], 
-                                                                            cols=["Month of Year Month", "Unnamed: 1"],
-                                                                            names=["Date", "Count"])
-        rcvs_tables["TableA.csv"] = rcvs_tables["TableA.csv"].replace("Sept", "Sep")
-        rcvs_tables["TableA.csv"].iloc[0] = rcvs_tables["TableA.csv"].iloc[2].astype(str).str.cat(rcvs_tables["TableA.csv"].iloc[0].astype(str), sep='')
-        rcvs_tables["TableA.csv"] = loader.promote_first_row_to_header(df=rcvs_tables["TableA.csv"])
-        rcvs_tables["TableA.csv"] = loader.rename_column(df=rcvs_tables["TableA.csv"], 
-                                                                                cols=[np.nan],
-                                                                                names=["Police District"])
-        rcvs_tables["TableA.csv"] = rcvs_tables["TableA.csv"].iloc[2:].reset_index(drop=True)
-        rcvs_tables["TableA.csv"] = rcvs_tables["TableA.csv"].drop(columns="TotalTotal")
-        rcvs_tables["TableA.csv"].columns = list(rcvs_tables["TableA.csv"].columns[:1]) + list(pd.to_datetime(rcvs_tables["TableA.csv"].columns[1:], format=f"%b%Y"))
-        rcvs_tables["TableB.csv"] = loader.promote_first_row_to_header(df=rcvs_tables["TableB.csv"])
-        rcvs_tables["Trend AEG.csv"] = loader.to_date(rcvs_tables["Trend AEG.csv"], "Date")
+        for tbl_name in ["TableA.csv", "TableB.csv"]:
+            rcvs_tables[tbl_name] = rcvs_tables[tbl_name].replace("Sept", "Sep")
+            rcvs_tables[tbl_name].iloc[0] = rcvs_tables[tbl_name].iloc[2].astype(str).str.cat(rcvs_tables[tbl_name].iloc[0].astype(str), sep='')
+            rcvs_tables[tbl_name] = loader.promote_first_row_to_header(df=rcvs_tables[tbl_name])
+            rcvs_tables[tbl_name] = loader.rename_column(df=rcvs_tables[tbl_name], 
+                                                                cols=[np.nan],
+                                                                names=["Police District"])
+            rcvs_tables[tbl_name] = rcvs_tables[tbl_name].iloc[2:].reset_index(drop=True)
+            rcvs_tables[tbl_name] = rcvs_tables[tbl_name].drop(columns="TotalTotal")
+            rcvs_tables[tbl_name].columns = list(rcvs_tables[tbl_name].columns[:1]) + list(pd.to_datetime(rcvs_tables[tbl_name].columns[1:], format=f"%b%Y"))
+            
         for df_name, df in rcvs_tables.items():
             rcvs_tables[df_name] = loader.clean_count_columns(df=df)
 
         # Clean data - RCOS
-        rcos_tables["Boundary bar AEG.csv"] = loader.rename_column(df=rcos_tables["Boundary bar AEG.csv"], 
-                                                                    cols=["Police Districts", "Unnamed: 1"],
-                                                                    names=["Police District", "Count"])
-        rcos_tables["ANSOC Bar AEG.csv"] = loader.rename_column(df=rcos_tables["ANSOC Bar AEG.csv"], 
-                                                                        cols=["Unnamed: 1"],
-                                                                        names=["Count"])
-        rcos_tables["Trend AEG.csv"] = loader.rename_column(df=rcos_tables["Trend AEG.csv"], 
-                                                                            cols=["Month of Year Month", "Unnamed: 1"],
-                                                                            names=["Date", "Count"])
         rcos_tables["Ethnicity AES.csv"] = loader.rename_column(df=rcos_tables["Ethnicity AES.csv"], 
                                                                                 cols=[f"% of Total Proceedings along Ethnic Group", "Proceedings"],
                                                                                 names=["Percentage of Proceedings", "Count"])
-        rcos_tables["TableA.csv"] = rcos_tables["TableA.csv"].replace("Sept", "Sep")
-        rcos_tables["TableA.csv"].iloc[0] = rcos_tables["TableA.csv"].iloc[2].astype(str).str.cat(rcos_tables["TableA.csv"].iloc[0].astype(str), sep='')
-        rcos_tables["TableA.csv"] = loader.promote_first_row_to_header(df=rcos_tables["TableA.csv"])
-        rcos_tables["TableA.csv"] = loader.rename_column(df=rcos_tables["TableA.csv"], 
-                                                                                cols=[np.nan],
-                                                                                names=["Police District"])
-        rcos_tables["TableA.csv"] = rcos_tables["TableA.csv"].iloc[2:].reset_index(drop=True)
-        rcos_tables["TableA.csv"] = rcos_tables["TableA.csv"].drop(columns="TotalTotal")
-        rcos_tables["TableA.csv"].columns = list(rcos_tables["TableA.csv"].columns[:1]) + list(pd.to_datetime(rcos_tables["TableA.csv"].columns[1:], format=f"%b%Y"))
-        rcos_tables["TableB.csv"] = loader.promote_first_row_to_header(df=rcos_tables["TableB.csv"])
-        rcos_tables["Trend AEG.csv"] = loader.to_date(rcos_tables["Trend AEG.csv"], "Date", formatting=f"%b%Y")
-        rcos_tables["Age and Sex AES.csv"] = loader.add_header_row(rcos_tables["Age and Sex AES.csv"], ["Age", "Count"])
+        for tbl_name in ["TableA.csv", "TableB.csv"]:
+            rcos_tables[tbl_name] = rcos_tables[tbl_name].replace("Sept", "Sep")
+            rcos_tables[tbl_name].iloc[0] = rcos_tables[tbl_name].iloc[2].astype(str).str.cat(rcos_tables[tbl_name].iloc[0].astype(str), sep='')
+            rcos_tables[tbl_name] = loader.promote_first_row_to_header(df=rcos_tables[tbl_name])
+            rcos_tables[tbl_name] = loader.rename_column(df=rcos_tables[tbl_name], 
+                                                                cols=[np.nan],
+                                                                names=["Police District"])
+            rcos_tables[tbl_name] = rcos_tables[tbl_name].iloc[2:].reset_index(drop=True)
+            rcos_tables[tbl_name] = rcos_tables[tbl_name].drop(columns="TotalTotal")
+            rcos_tables[tbl_name].columns = list(rcos_tables[tbl_name].columns[:1]) + list(pd.to_datetime(rcos_tables[tbl_name].columns[1:], format=f"%b%Y"))
+
         for df_name, df in rcos_tables.items():
             rcos_tables[df_name] = loader.clean_count_columns(df=df)
 
         # Clean data - Activity and Report
-        activity_tables["Boundary Districts.csv"] = loader.promote_first_row_to_header(df=activity_tables["Boundary Districts.csv"])
-        activity_tables["Boundary Districts.csv"] = activity_tables["Boundary Districts.csv"].fillna(0)
         activity_tables["Occ Type.csv"] = loader.promote_first_row_to_header(df=activity_tables["Occ Type.csv"])
         activity_tables["Occ Type.csv"] = activity_tables["Occ Type.csv"].fillna(0) 
-        activity_tables["TableA.csv"] = loader.promote_first_row_to_header(df=activity_tables["TableA.csv"])
         activity_tables["TableB.csv"] = loader.promote_first_row_to_header(df=activity_tables["TableB.csv"])
-        activity_tables["TableA.csv"] = loader.rename_column(df=activity_tables["TableA.csv"], 
-                                                                        cols=["Police District/Region"],
-                                                                        names=["Police District"])
-        activity_tables["TableA.csv"].columns = list(activity_tables["TableA.csv"].columns[:1]) + list(pd.to_datetime(activity_tables["TableA.csv"].columns[1:]))
+        activity_tables["TableB.csv"].columns = activity_tables["TableB.csv"].columns.map(lambda x: re.sub(r'\bSept(\d{4})\b', r'Sep\1', x))
+        activity_tables["TableB.csv"].columns = list(activity_tables["TableB.csv"].columns[:2]) + list(pd.to_datetime(activity_tables["TableB.csv"].columns[2:], format=f"%b%Y"))
+        activity_tables["TableB.csv"] = activity_tables["TableB.csv"].fillna(0)
+        
         for df_name, df in activity_tables.items():
             activity_tables[df_name] = loader.clean_count_columns(df=df)
 
@@ -215,10 +177,10 @@ def clean_dataset(loader:DataLoader, rcvs_tables, rcos_tables, activity_tables):
     return data_cleaned, rcvs_tables, rcos_tables, activity_tables
 
 
-
 # - App layout -
 st.title("NZ Crime Rate Forecasting")
-st.caption("Crime Rate Forecasting for New Zealand")
+st.caption("""Crime Rate Forecasting for New Zealand 
+    (dataset taken from NZ Police Data-https://www.police.govt.nz/about-us/publications-statistics/data-and-statistics/policedatanz)""")
 st.divider()
 
 if "data_ok" not in st.session_state:
@@ -240,26 +202,33 @@ if st.session_state["data_ok"] == True:
     activity_tables = st.session_state["activity_tables"]
     boundary_loader = st.session_state["boundary_loader"]
 
+
+    #TODO: Selection of Dataset -> Build Lag Features
     st.header("Data Selection")
     data_sel, data_desc= st.columns([2, 2])
     
     DATA_INFO = {
-        "RCVS": {
-            "desc": "Recorded Crime Victims Statistics.",
+        "RCVS - District": {
+            "desc": "Recorded Crime Victims Statistics - by Police Boundary",
             "dataset": rcvs_tables["TableA.csv"],
         },
-        "RCOS": {
-            "desc": "Recorded Crime Offenders Statistics.",
+        "RCVS - Anzsoc": {
+                    "desc": "Recorded Crime Victims Statistics - by Crime Type",
+                    "dataset": rcvs_tables["TableB.csv"],
+                },
+        "RCOS - District": {
+            "desc": "Recorded Crime Offenders Statistics - by Police Boundary",
             "dataset": rcos_tables["TableA.csv"],
         },
-        # "Activity": {
-        #     "desc": "Activities.",
-        #     "dataset": rcos_tables["TableA.csv"],
-        # }
+        "RCOS - Anzsoc": {
+                    "desc": "Recorded Crime Offenders Statistics - by Crime Type",
+                    "dataset": rcos_tables["TableB.csv"],
+                },
     }
 
     if not "data_chosen" in st.session_state:
-            st.session_state["data_chosen"] = "RCOS"
+        st.session_state["data_chosen"] = "RCVS - Anzsoc"
+
     with data_sel: 
         data_choice = st.selectbox(
             "Choose a dataset",
@@ -271,20 +240,11 @@ if st.session_state["data_ok"] == True:
 
     if data_choice != st.session_state["data_chosen"]:
         st.session_state["build_features"] = forecast_dataset(
-            data_choice
+            data_choice, id_col=DATA_INFO[data_choice]['dataset'].columns[0]
         )
 
-    # Forecast Result
-    
-    # rcvs_tableB_results = run_forecasting(rcvs_tables["TableB.csv"], id_col="ANZSOC Division")
-    # rcos_tableA_results = run_forecasting(rcos_tables["TableA.csv"], id_col="Police District")
-    # rcos_tableB_results = run_forecasting(rcos_tables["TableB.csv"], id_col="Anzsoc Division")
-    # activity_tableA_results = run_forecasting(activity_tables["TableA.csv"], id_col="Police District", n_years_ahead=6)
-    # activity_tableB_results = run_forecasting(activity_tables["TableB.csv"], id_col="Occurrence Type Category", n_years_ahead=6)
 
-    # rcos_tableA_results["rate_per_capita"] = boundary_loader.merge_with_crime_data(long_df=rcos_tableA_results["long_df"])
-    # activity_tableA_results["rate_per_capita"] = boundary_loader.merge_with_crime_data(long_df=activity_tableA_results["long_df"])
-
+    #TODO: Selection of Model and Division -> Forecast
     st.header("Model and District Selection")
     col_sel, col_desc, district_sel, select_button = st.columns([2, 2, 2, 1])
     MODEL_INFO = {
@@ -303,11 +263,8 @@ if st.session_state["data_ok"] == True:
         "Random Forest Regressor": {
             "desc": "Prediction using Random Forest Regression.",
         },
-        "Neural Network Regressor": {
-            "desc": "Prediction using Neural Network Regression Feed Foward.",
-        },
         "Histogram Gradient Boosting Regressor": {
-            "desc": "Prediction using Neural Network Regression Feed Foward.",
+            "desc": "Prediction using Histogram Gradient Boosting Regressor.",
         },
         "Prophet": {
             "desc": "Prediction using Prophet.",
@@ -324,7 +281,7 @@ if st.session_state["data_ok"] == True:
         built_table =  st.session_state["build_features"]
 
     DISTRICTS_SEL = built_table["rate_per_capita"]["district"].unique()
- 
+
     with col_sel:
         chosen = st.selectbox(
             "Choose a prediction model",
@@ -335,7 +292,7 @@ if st.session_state["data_ok"] == True:
         st.markdown(f"**Description:** {MODEL_INFO[chosen]['desc']}")
     with district_sel:
         chosen2 = st.selectbox(
-            "Choose a district",
+            "Choose a division",
             DISTRICTS_SEL,
             format_func=lambda x: "New Zealand (Nation)" if x == "Total" else x,
             index=0,
@@ -348,6 +305,8 @@ if st.session_state["data_ok"] == True:
                 chosen2
             )
 
+
+    #TODO: Output of Results and Visualization
     if "forecast_result" in st.session_state:
         forecast_result = st.session_state["forecast_result"]
 
@@ -357,11 +316,6 @@ if st.session_state["data_ok"] == True:
         m2.metric("RMSE", f"{forecast_result['metrics_holdout']['rmse']:,.2f}")
         m3.metric("Mean Absolute Error", f"{forecast_result['metrics_holdout']['mae']:.2f}")
         m4.metric("Mean Absolute Percentage Error", f"{forecast_result['metrics_holdout']['mape']:,.2f}")
-
-        st.dataframe(
-                built_table["rate_per_capita"],
-                use_container_width=True,
-            )
 
         st.divider()
         
@@ -426,20 +380,66 @@ if st.session_state["data_ok"] == True:
                 use_container_width=True,
             )
 
+
+    #TODO: Exploratory Data Analysis
     boundary_district = boundary_loader.load_districts()
     boundary_district = boundary_district.rename(columns={"DISTRICT_N": "district"})
     boundary_district = boundary_district.replace("Bay of Plenty", "Bay Of Plenty") 
-
+    if "act_tableB" not in st.session_state:
+        x = run_forecasting(activity_tables["TableB.csv"], id_col=("Occurrence Type Category", "Occurrence Division"))
+        st.session_state["act_tableB"] = x["long_df"]
     if data_choice != st.session_state["data_chosen"]:
         st.session_state["data_chosen"] = data_choice
-        if data_choice == "RCVS":
-            st.session_state["fig"] = plot_rate_matrix(built_table["rate_per_capita"])
+        st.session_state.pop("fig1", None)
+        st.session_state.pop("fig2", None)
+        st.session_state.pop("fig3", None)
+        st.session_state.pop("fig4", None)
+        if data_choice == "RCVS - District":
+            tabA, tabB = st.tabs(["Rate Matrix", "Rate Choropleth"])
+            st.session_state["fig1"] = plot_rate_matrix(built_table["rate_per_capita"])
             st.session_state["fig2"] = plot_rate_choropleth(boundary_district, built_table["rate_per_capita"])
-        elif data_choice == "RCOS":
-            st.session_state["fig"] = plot_rate_matrix(built_table["rate_per_capita"], title="Offenders rate per 10,000 people — by district")
-            st.session_state["fig2"] = plot_rate_choropleth(boundary_district, built_table["rate_per_capita"], title="Offenders rate per 10,000 people — by district")
+        elif data_choice == "RCOS - District":
+            tabA, tabB = st.tabs(["Rate Matrix", "Rate Choropleth"])
+            st.session_state["fig1"] = plot_rate_matrix(built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district")
+            st.session_state["fig2"] = plot_rate_choropleth(boundary_district, built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district")
+        elif data_choice == "RCVS - Anzsoc":
+            tabA, tabB, tabC = st.tabs(["Bar Chart", "Rate Matrix", "Area Chart"])
+            st.session_state["fig1"] = plot_anzsoc_bar(built_table["rate_per_capita"])
+            st.session_state["fig3"] = plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - victim", ytitle="Type of Crime")        
+            st.session_state["fig4"] = plot_anzsoc_area(built_table["rate_per_capita"])    
+        elif data_choice == "RCOS - Anzsoc":
+            tabA, tabB, tabC = st.tabs(["Bar Chart", "Rate Matrix", "Area Chart"])
+            st.session_state["fig1"] = plot_anzsoc_bar(built_table["rate_per_capita"], title="Crime classification - offender")
+            st.session_state["fig3"] = plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - offender", ytitle="Type of Crime")        
+            st.session_state["fig4"] = plot_anzsoc_area(built_table["rate_per_capita"], title="Crime classification - offender")     
+    
+    if "fig1" in st.session_state:
+        with tabA:
+            st.plotly_chart(st.session_state["fig1"], use_container_width=True)
+    if "fig2" in st.session_state:
+        with tabB:
+            st.pyplot(st.session_state["fig2"], use_container_width=True, clear_figure=True)
+    if "fig3" in st.session_state:
+        with tabB:
+            st.plotly_chart(st.session_state["fig3"], use_container_width=True)
+    if "fig4" in st.session_state:
+        with tabC:
+            st.plotly_chart(st.session_state["fig4"], use_container_width=True)
 
-    if "fig" in st.session_state:
-        st.pyplot(st.session_state["fig"])
-        st.pyplot(st.session_state["fig2"])
-   
+    # Data and statistics toggle
+    columns_to_keep = ['district', 'count', 'period', 'year', 'population', 'rate_per_capita']
+    built_table["short_df"] = built_table["rate_per_capita"][columns_to_keep]
+    with st.expander("Data Viewer"):
+        st.dataframe(rcvs_tables["TableB.csv"], use_container_width=True, height=420)
+    with st.expander("Summary Statistics"):
+        st.dataframe(built_table["short_df"].describe().T, use_container_width=True)
+
+    st.divider()
+
+    st.header("Exploratory Data")
+    fig1 = plot_stacked_bar(activity_tables["Occ Type.csv"])
+    st.plotly_chart(fig1, use_container_width=True)
+
+    fig2 = plot_anzsoc_treemap(st.session_state["act_tableB"])
+    st.plotly_chart(fig2, use_container_width=True)
+

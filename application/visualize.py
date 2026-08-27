@@ -1,6 +1,10 @@
 """
 1. plot_rate_choropleth  — geographic map, districts colored by rate
 2. plot_rate_matrix      — district x time-period matrix heatmap
+
+add 
+2. ansoc bar (rcvs | rcos) (bar)
+8. occ type
 """
 
 from __future__ import annotations
@@ -8,72 +12,229 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import plotly.graph_objects as go
+import plotly.express as px
 
 
 def plot_rate_matrix(
     long_df: pd.DataFrame,
     value_col: str = "rate_per_capita",
     title: str = "Crime rate per 10,000 people — by district and month",
-    figsize=(16, 4),
-    cmap = "viridis"
+    cmap: str = "Viridis",
+    xtitle="Period",
+    ytitle="District",
 ):
     """District (rows) x time period (columns) heatmap"""
+
     long_df = long_df.copy()
     long_df = long_df[long_df["district"] != "Total"].reset_index(drop=True)
-    print(long_df.head(3))
-    pivot = long_df.pivot_table(index="district", columns="period", values=value_col)
+
+    pivot = long_df.pivot_table(
+        index="district",
+        columns="period",
+        values=value_col
+    )
+
     pivot = pivot.reindex(sorted(pivot.columns), axis=1)
     pivot = pivot.astype("float64")
 
-    fig, ax = plt.subplots(figsize=figsize)
-    sns.heatmap(
-        pivot,
-        cmap=cmap,
-        annot=False,
-        linewidths=0.3,
-        linecolor="white",
-        cbar_kws={"label": value_col.replace("_", " ")},
-        ax=ax,
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=pivot.values,
+            x=pivot.columns.astype(str),
+            y=pivot.index,
+            colorscale=cmap,
+            colorbar=dict(
+                title=value_col.replace("_", " ")
+            ),
+            hovertemplate=(
+                "District: %{y}<br>"
+                "Period: %{x}<br>"
+                f"{value_col}: %{{z:.2f}}<extra></extra>"
+            ),
+        )
     )
-    ax.set_title(title, fontsize=13, pad=12)
-    ax.set_xlabel("Period")
-    ax.set_ylabel("District")
-    # Thin out x-tick labels if there are many periods, so they stay readable
-    n_cols = len(pivot.columns)
-    step = max(1, n_cols // 24)
-    ax.set_xticks(range(0, n_cols, step))
-    ax.set_xticklabels([str(pivot.columns[i]) for i in range(0, n_cols, step)], rotation=90, fontsize=8)
-    plt.tight_layout()
+
+    fig.update_layout(
+        title=title,
+        xaxis_title=xtitle,
+        yaxis_title=ytitle,
+        height=max(400, len(pivot.index) * 25),
+        margin=dict(l=80, r=20, t=60, b=80),
+    )
+
     return fig
 
-
-def plot_rate_choropleth(
-    districts_gdf,
-    rate_df: pd.DataFrame,
-    district_col: str = "district",
-    value_col: str = "rate_per_capita",
-    title: str = "Crime rate per 10,000 people — by district",
-    cmap: str = "YlOrRd",
+def plot_rate_choropleth( 
+    districts_gdf, 
+    rate_df: pd.DataFrame, 
+    district_col: str = "district", 
+    value_col: str = "rate_per_capita", 
+    title: str = "Crime rate per 10,000 people — by district", 
+    cmap: str = "YlOrRd", 
     figsize=(16, 5),
-):
-    merged = districts_gdf.merge(rate_df, on=district_col, how="left")
+): 
+    merged = districts_gdf.merge(rate_df, on=district_col, how="left") 
+    fig, ax = plt.subplots(figsize=figsize) 
+    merged.plot( column=value_col, cmap=cmap, linewidth=0.6, legend=True, ax=ax, ) 
 
-    fig, ax = plt.subplots(figsize=figsize)
-    merged.plot(
-        column=value_col,
-        cmap=cmap,
-        linewidth=0.6,
-        legend=True,
-        ax=ax,
+    for _, row in merged.iterrows(): 
+        if row.geometry is not None: 
+            centroid = row.geometry.representative_point() 
+            ax.annotate( row[district_col], xy=(centroid.x, centroid.y), ha="center", fontsize=4, color="black", ) 
+
+    ax.set_title(title, fontsize=13, pad=12) 
+    ax.set_axis_off() 
+
+    plt.tight_layout() 
+    return fig
+
+def plot_anzsoc_bar(
+    long_df: pd.DataFrame,
+    value_col: str = "count",
+    anzsoc_col:str = "district",
+    title: str = "Crime classification - victim",
+    xtitle:str ="Count",
+    ytitle:str = "Type of Crime",
+):
+    long_df = long_df.copy()
+    long_df = long_df[long_df[anzsoc_col] != "Total"].reset_index(drop=True)
+    anzsoc_grouped = (long_df.groupby(anzsoc_col)[value_col]
+                      .sum()
+                      .sort_values(ascending=True)
+                      .reset_index()
     )
-    for _, row in merged.iterrows():
-        if row.geometry is not None:
-            centroid = row.geometry.representative_point()
-            ax.annotate(
-                row[district_col], xy=(centroid.x, centroid.y),
-                ha="center", fontsize=7, color="black",
-            )
-    ax.set_title(title, fontsize=13, pad=12)
-    ax.set_axis_off()
-    plt.tight_layout()
+
+    fig = px.bar(
+        anzsoc_grouped,
+        x=value_col,
+        y=anzsoc_col,
+        orientation="h",
+    )
+
+    fig.update_layout( 
+        title=title,
+        xaxis_title=xtitle, 
+        yaxis_title=ytitle, 
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font_color="#e0e0e0",
+        legend=dict(bgcolor="#161b22", bordercolor="#30363d")
+    )
+
+    return fig
+
+def plot_stacked_bar(
+    long_df: pd.DataFrame,
+    value_col: str = "count",
+    x_col: str = "district",
+    color_col: str = "Occurrence Type Category",
+    title: str = "Crime classification",
+    xtitle:str = "Type of Crime",
+    ytitle:str = "Count",
+):
+    melted = (
+        long_df
+        .reset_index()
+        .melt(id_vars=color_col, var_name=x_col, value_name=value_col)
+    )
+    melted = melted[melted[x_col] != "index"].reset_index(drop=True)
+ 
+    fig = go.Figure()
+ 
+    totals = melted.groupby(color_col)[value_col].sum().sort_values(ascending=True)
+ 
+    for i, category in enumerate(totals.index):
+        subset = melted[melted[color_col] == category]
+        fig.add_trace(go.Bar(
+            x=subset[x_col],
+            y=subset[value_col],
+            name=str(category),
+        ))
+ 
+    fig.update_layout(
+        barmode="stack",
+        title=title,
+        xaxis_title=xtitle,
+        yaxis_title=ytitle,
+    )
+ 
+    return fig
+ 
+ 
+def plot_anzsoc_area(
+    long_df: pd.DataFrame,
+    period_col: str = "period",
+    value_col: str = "count",
+    anzsoc_col: str = "district",
+    title: str = "Crime classification over time",
+    xtitle:str = "Type of Crime",
+    ytitle:str = "Count",
+):
+    long_df = long_df.copy()
+    long_df = long_df[long_df[anzsoc_col] != "Total"].reset_index(drop=True)
+    long_df[period_col] = long_df[period_col].dt.to_timestamp()
+    long_df[anzsoc_col] = long_df[anzsoc_col].str.strip()
+ 
+    fig = go.Figure()
+    colors = px.colors.qualitative.Prism
+ 
+    for i, category in enumerate(long_df[anzsoc_col].unique()):
+        subset = long_df[long_df[anzsoc_col] == category].sort_values(period_col)
+        fig.add_trace(go.Scatter(
+            x=subset[period_col],
+            y=subset[value_col],
+            name=str(category),
+            mode="lines",
+            stackgroup="one",
+            line=dict(color=colors[i % len(colors)]),
+        ))
+ 
+    fig.update_layout(
+        title=title,
+        xaxis_title=xtitle,
+        yaxis_title=ytitle,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font_color="#e0e0e0",
+        legend=dict(bgcolor="#161b22", bordercolor="#30363d"),
+    )
+ 
+    return fig
+
+def plot_anzsoc_treemap(
+    long_df: pd.DataFrame,
+    value_col:str = "count",
+    label_col: str = "Occurrence Division",
+    parent_col: str = "district",
+    title: str = "Crime classification",
+    xtitle:str = "Type of Crime",
+    ytitle:str = "Count",
+):
+    long_df = long_df[long_df[parent_col] != "Grand Total"]
+    grouped = (
+        long_df.groupby([parent_col, label_col])[value_col]
+        .sum()
+        .sort_values(ascending=True)
+        .reset_index()
+    )
+
+    fig = px.treemap(
+        grouped, 
+        path=[parent_col, label_col],
+        values=value_col,
+        color=value_col,
+        color_continuous_scale="spectral",
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title=xtitle,
+        yaxis_title=ytitle,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font_color="#e0e0e0",
+        legend=dict(bgcolor="#161b22", bordercolor="#30363d"),
+    )
+
     return fig
