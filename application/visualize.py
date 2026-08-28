@@ -1,28 +1,27 @@
 """
 1. plot_rate_choropleth  — geographic map, districts colored by rate
-2. plot_rate_matrix      — district x time-period matrix heatmap
-
-add 
-2. ansoc bar (rcvs | rcos) (bar)
-8. occ type
+2. plot_rate_matrix      — division x time-period matrix heatmap
+3. plot_anzsoc_bar       — bar chart (descending order)
+4. plot_stacked_bar      — stacked bar by Occurence Type Category 
+5. plot_anzsoc_area      — area map, anzsoc x time-period stacked line
+5. plot_anzsoc_treemap   — treemap, classification of OCC with count
 """
 
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 import plotly.graph_objects as go
 import plotly.express as px
 
 
 def plot_rate_matrix(
-    long_df: pd.DataFrame,
-    value_col: str = "rate_per_capita",
-    title: str = "Crime rate per 10,000 people — by district and month",
-    cmap: str = "Viridis",
-    xtitle="Period",
-    ytitle="District",
+    long_df:pd.DataFrame,
+    value_col:str = "rate_per_capita",
+    title:str = "Crime rate per 10,000 people — by district and month",
+    cmap:str = "Viridis",
+    xtitle = "Period",
+    ytitle = "District",
 ):
     """District (rows) x time period (columns) heatmap"""
 
@@ -67,12 +66,12 @@ def plot_rate_matrix(
 
 def plot_rate_choropleth( 
     districts_gdf, 
-    rate_df: pd.DataFrame, 
-    district_col: str = "district", 
-    value_col: str = "rate_per_capita", 
-    title: str = "Crime rate per 10,000 people — by district", 
-    cmap: str = "YlOrRd", 
-    figsize=(16, 5),
+    rate_df:pd.DataFrame, 
+    district_col:str = "district", 
+    value_col:str = "rate_per_capita", 
+    title:str = "Crime rate per 10,000 people — by district", 
+    cmap:str = "YlOrRd", 
+    figsize = (16, 5),
 ): 
     merged = districts_gdf.merge(rate_df, on=district_col, how="left") 
     fig, ax = plt.subplots(figsize=figsize) 
@@ -90,15 +89,16 @@ def plot_rate_choropleth(
     return fig
 
 def plot_anzsoc_bar(
-    long_df: pd.DataFrame,
-    value_col: str = "count",
+    long_df:pd.DataFrame,
+    value_col:str = "count",
     anzsoc_col:str = "district",
-    title: str = "Crime classification - victim",
-    xtitle:str ="Count",
+    title:str = "Crime classification - victim",
+    xtitle:str = "Count",
     ytitle:str = "Type of Crime",
 ):
     long_df = long_df.copy()
     long_df = long_df[long_df[anzsoc_col] != "Total"].reset_index(drop=True)
+
     anzsoc_grouped = (long_df.groupby(anzsoc_col)[value_col]
                       .sum()
                       .sort_values(ascending=True)
@@ -125,11 +125,11 @@ def plot_anzsoc_bar(
     return fig
 
 def plot_stacked_bar(
-    long_df: pd.DataFrame,
-    value_col: str = "count",
-    x_col: str = "district",
-    color_col: str = "Occurrence Type Category",
-    title: str = "Crime classification",
+    long_df:pd.DataFrame,
+    value_col:str = "count",
+    x_col:str = "district",
+    color_col:str = "Occurrence Type Category",
+    title:str = "Crime classification",
     xtitle:str = "Type of Crime",
     ytitle:str = "Count",
 ):
@@ -161,13 +161,12 @@ def plot_stacked_bar(
  
     return fig
  
- 
 def plot_anzsoc_area(
-    long_df: pd.DataFrame,
-    period_col: str = "period",
-    value_col: str = "count",
-    anzsoc_col: str = "district",
-    title: str = "Crime classification over time",
+    long_df:pd.DataFrame,
+    period_col:str = "period",
+    value_col:str = "count",
+    anzsoc_col:str = "district",
+    title:str = "Crime classification over time",
     xtitle:str = "Type of Crime",
     ytitle:str = "Count",
 ):
@@ -203,14 +202,15 @@ def plot_anzsoc_area(
     return fig
 
 def plot_anzsoc_treemap(
-    long_df: pd.DataFrame,
+    long_df:pd.DataFrame,
     value_col:str = "count",
-    label_col: str = "Occurrence Division",
-    parent_col: str = "district",
-    title: str = "Crime classification",
+    label_col:str = "Occurrence Division",
+    parent_col:str = "district",
+    title:str = "Crime classification",
     xtitle:str = "Type of Crime",
     ytitle:str = "Count",
 ):
+    long_df = long_df.copy()
     long_df = long_df[long_df[parent_col] != "Grand Total"]
     grouped = (
         long_df.groupby([parent_col, label_col])[value_col]

@@ -27,7 +27,9 @@ st.set_page_config(
     page_title="NZ Crime Rate Forcasting",
     layout="wide",
 )
-# - Dark theme CSS -
+# --------------------------------------------------------------------------
+# Dark Theme CSS
+# --------------------------------------------------------------------------
 st.markdown("""
 <style>
     /* Dividers */
@@ -46,9 +48,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def run_forecasting(df, id_col):
-    
     results = run_forecast_pipeline(df, id_col=id_col)
-
     return results
 
 
@@ -67,7 +67,7 @@ def model_selection(long_df, model_name, district):
     elif model_name == "SVR":
         model = Pipeline([
             ("scalar", StandardScaler()),
-            ("svr", SVR(kernel="rbf", C=100, epsilon=0.01))
+            ("svr", SVR(kernel="rbf", C=100, epsilon=0.1))
         ])
         forecast_result = sklearn_forecast(long_df=long_df, district=district, model=model, tune=False)
     elif model_name == "KNN (k=10, scaled)":
@@ -78,13 +78,13 @@ def model_selection(long_df, model_name, district):
         forecast_result = sklearn_forecast(long_df=long_df, district=district, model=model, tune=False)
     elif model_name == "Random Forest Regressor":
         model = Pipeline([
-            ("rf", RandomForestRegressor(n_estimators=100, random_state=42))
+            ("rf", RandomForestRegressor(n_estimators=300, random_state=42))
         ])
         forecast_result = sklearn_forecast(long_df=long_df, district=district, model=model, tune=False)
     elif model_name == "Histogram Gradient Boosting Regressor":
         model = Pipeline([
             ("scalar", StandardScaler()),
-            ("hgbr", HistGradientBoostingRegressor(learning_rate=0.01, max_iter=200, max_depth=50))
+            ("hgbr", HistGradientBoostingRegressor(learning_rate=0.05, max_iter=200, max_depth=30))
         ])
         forecast_result = sklearn_forecast(long_df=long_df, district=district, model=model, tune=False)
     elif model_name == "Prophet":
@@ -125,7 +125,9 @@ def load_data():
 
 def clean_dataset(loader:DataLoader, rcvs_tables, rcos_tables, activity_tables):
     try:
-        # Clean data - RCVS
+        # --------------------------------------------------------------------------
+        # Clean Data RCVS
+        # --------------------------------------------------------------------------
         for tbl_name in ["TableA.csv", "TableB.csv"]:
             rcvs_tables[tbl_name] = rcvs_tables[tbl_name].replace("Sept", "Sep")
             rcvs_tables[tbl_name].iloc[0] = rcvs_tables[tbl_name].iloc[2].astype(str).str.cat(rcvs_tables[tbl_name].iloc[0].astype(str), sep='')
@@ -140,7 +142,9 @@ def clean_dataset(loader:DataLoader, rcvs_tables, rcos_tables, activity_tables):
         for df_name, df in rcvs_tables.items():
             rcvs_tables[df_name] = loader.clean_count_columns(df=df)
 
-        # Clean data - RCOS
+        # --------------------------------------------------------------------------
+        # Clean Data RCOS 
+        # --------------------------------------------------------------------------
         rcos_tables["Ethnicity AES.csv"] = loader.rename_column(df=rcos_tables["Ethnicity AES.csv"], 
                                                                                 cols=[f"% of Total Proceedings along Ethnic Group", "Proceedings"],
                                                                                 names=["Percentage of Proceedings", "Count"])
@@ -158,7 +162,9 @@ def clean_dataset(loader:DataLoader, rcvs_tables, rcos_tables, activity_tables):
         for df_name, df in rcos_tables.items():
             rcos_tables[df_name] = loader.clean_count_columns(df=df)
 
-        # Clean data - Activity and Report
+        # --------------------------------------------------------------------------
+        # Clean Data Activity and Report
+        # --------------------------------------------------------------------------
         activity_tables["Occ Type.csv"] = loader.promote_first_row_to_header(df=activity_tables["Occ Type.csv"])
         activity_tables["Occ Type.csv"] = activity_tables["Occ Type.csv"].fillna(0) 
         activity_tables["TableB.csv"] = loader.promote_first_row_to_header(df=activity_tables["TableB.csv"])
@@ -177,7 +183,9 @@ def clean_dataset(loader:DataLoader, rcvs_tables, rcos_tables, activity_tables):
     return data_cleaned, rcvs_tables, rcos_tables, activity_tables
 
 
-# - App layout -
+# --------------------------------------------------------------------------
+# App Layout
+# --------------------------------------------------------------------------
 st.title("NZ Crime Rate Forecasting")
 st.caption("""Crime Rate Forecasting for New Zealand 
     (dataset taken from NZ Police Data-https://www.police.govt.nz/about-us/publications-statistics/data-and-statistics/policedatanz)""")
@@ -186,7 +194,9 @@ st.divider()
 if "data_ok" not in st.session_state:
     st.session_state["data_ok"] = False
 
-# Load data
+# --------------------------------------------------------------------------
+# Load Data
+# --------------------------------------------------------------------------
 if st.session_state["data_ok"] == False:
     data_ok, data_cleaned, rcvs_tables, rcos_tables, activity_tables, boundary_loader = load_data()
     if data_ok and data_cleaned:
@@ -203,7 +213,9 @@ if st.session_state["data_ok"] == True:
     boundary_loader = st.session_state["boundary_loader"]
 
 
-    #TODO: Selection of Dataset -> Build Lag Features
+    # --------------------------------------------------------------------------
+    # 1. Selection of Dataset -> Build Lag Features
+    # --------------------------------------------------------------------------
     st.header("Data Selection")
     data_sel, data_desc= st.columns([2, 2])
     
@@ -239,42 +251,53 @@ if st.session_state["data_ok"] == True:
         st.markdown(f"**Description:** {DATA_INFO[data_choice]['desc']}")
 
     if data_choice != st.session_state["data_chosen"]:
+        st.session_state["data_chosen"] = data_choice
         st.session_state["build_features"] = forecast_dataset(
             data_choice, id_col=DATA_INFO[data_choice]['dataset'].columns[0]
         )
 
 
-    #TODO: Selection of Model and Division -> Forecast
+    # --------------------------------------------------------------------------
+    # 2. Selection of Model and Division -> Model Forecast
+    # --------------------------------------------------------------------------
     st.header("Model and District Selection")
     col_sel, col_desc, district_sel, select_button = st.columns([2, 2, 2, 1])
     MODEL_INFO = {
         "Gradient Boosting": {
-            "desc": "Prediction using Gradient Boosting.",
+            "desc": "Builds an ensemble of decision trees sequentially, where each new tree corrects the errors of previous trees.",
         },
+
         "Linear Regression": {
-            "desc": "Prediction using Linear Regression.",
+            "desc": "Models a linear relationship between features and the target using a best-fit straight line.",
         },
+
         "SVR": {
-            "desc": "Prediction using SVR.",
+            "desc": "Uses support vectors and kernel functions to find a hyperplane that best fits the data within a specified error margin.",
         },
+
         "KNN (k=10, scaled)": {
-            "desc": "Prediction using K-Nearest Neighbours Regression.",
+            "desc": "Predicts values based on the average of the 10 nearest neighbouring observations in the feature space.",
         },
+
         "Random Forest Regressor": {
-            "desc": "Prediction using Random Forest Regression.",
+            "desc": "Combines predictions from many decision trees built on random subsets of data to improve accuracy and reduce overfitting.",
         },
+
         "Histogram Gradient Boosting Regressor": {
-            "desc": "Prediction using Histogram Gradient Boosting Regressor.",
+            "desc": "A faster gradient boosting method that groups feature values into histograms before building trees, making it efficient for large datasets.",
         },
+
         "Prophet": {
-            "desc": "Prediction using Prophet.",
+            "desc": "A decomposable time-series model that captures trend, seasonality, and holiday effects automatically.",
         },
+
         "Statsmodel (ETS)": {
-            "desc": "Prediction using Statsmodel (ETS).",
+            "desc": "Uses Error, Trend, and Seasonal components to model and forecast time-series patterns through exponential smoothing.",
         },
+
         "Statsmodel (Sarima)": {
-            "desc": "Prediction using Statsmodel (Sarima).",
-        }
+            "desc": "Models autoregressive, differencing, moving average, and seasonal patterns to forecast time-series data.",
+        },
     }
 
     if "build_features" in st.session_state:
@@ -282,11 +305,14 @@ if st.session_state["data_ok"] == True:
 
     DISTRICTS_SEL = built_table["rate_per_capita"]["district"].unique()
 
+    if not "chosen2" in st.session_state:
+        st.session_state["chosen2"] = DISTRICTS_SEL[0]
+
     with col_sel:
         chosen = st.selectbox(
             "Choose a prediction model",
             list(MODEL_INFO.keys()),
-            index=0,
+            index=8,
         )
     with col_desc:
         st.markdown(f"**Description:** {MODEL_INFO[chosen]['desc']}")
@@ -299,6 +325,8 @@ if st.session_state["data_ok"] == True:
         )
     with select_button:
         if st.button("Select"):
+            st.session_state["chosen2"] = chosen2
+            st.session_state["data_chosen"] = data_choice
             st.session_state["forecast_result"] = model_selection(
                 built_table["long_df"],
                 chosen,
@@ -306,7 +334,9 @@ if st.session_state["data_ok"] == True:
             )
 
 
-    #TODO: Output of Results and Visualization
+    # --------------------------------------------------------------------------
+    # 3. Output of Results and Visualization 
+    # --------------------------------------------------------------------------
     if "forecast_result" in st.session_state:
         forecast_result = st.session_state["forecast_result"]
 
@@ -320,10 +350,10 @@ if st.session_state["data_ok"] == True:
         st.divider()
         
         st.header("Prediction Output")
-        tab1, = st.tabs(["Predicted and Actual Over Time"])
+        tab1, tab2 = st.tabs(["Predicted and Actual Over Time", "Actual vs Predicted"])
     
         with tab1:
-            y_actual = built_table["rate_per_capita"].loc[built_table["rate_per_capita"]["district"] == chosen2].copy() 
+            y_actual = built_table["rate_per_capita"].loc[built_table["rate_per_capita"]["district"] == st.session_state["chosen2"]].copy() 
             y_pred = forecast_result["forecast"].copy()
 
             # Convert Period -> Timestamp and Count -> Forecast_count for seamless concat
@@ -379,57 +409,77 @@ if st.session_state["data_ok"] == True:
                 forecast_plot,
                 use_container_width=True,
             )
+        with tab2:
+            hist = forecast_result["holdout"]
+            lo, hi = min(hist["actual"].min(), hist["predicted"].min()), max(hist["actual"].max(), hist["predicted"].max())
 
+            fig1 = go.Figure()
+            fig1.add_trace(go.Scatter(
+                x=hist["actual"], y=hist["predicted"],
+                mode="markers", name="Prediction",
+                marker=dict(color="#166b4d", opacity=0.65, size=6),
+            ))
+            fig1.add_trace(go.Scatter(
+                x=[lo, hi], y=[lo, hi],
+                mode="lines", name="Perfect Prediction",
+                line=dict(color="#f78166", width=2, dash="dash"),
+            ))
+        
+            fig1.update_layout(
+                title=f"{ 'New Zealand (Nation)' if st.session_state['chosen2'] == 'Total' else st.session_state['chosen2']}: Actual vs Predicted (no future forecast)",
+                xaxis_title="Actual",
+                yaxis_title="Predicted",
+                plot_bgcolor="#dee7f9",
+                paper_bgcolor="#0e1117",
+                font_color="#ebe9e9",
+                legend=dict(bgcolor="#566b88", bordercolor="#30363d"),
+            )
+            st.plotly_chart(fig1, use_container_width=True)
 
-    #TODO: Exploratory Data Analysis
+    # --------------------------------------------------------------------------
+    # 4. Exploratory Data Analysis 
+    # --------------------------------------------------------------------------
     boundary_district = boundary_loader.load_districts()
     boundary_district = boundary_district.rename(columns={"DISTRICT_N": "district"})
     boundary_district = boundary_district.replace("Bay of Plenty", "Bay Of Plenty") 
     if "act_tableB" not in st.session_state:
         x = run_forecasting(activity_tables["TableB.csv"], id_col=("Occurrence Type Category", "Occurrence Division"))
         st.session_state["act_tableB"] = x["long_df"]
-    if data_choice != st.session_state["data_chosen"]:
-        st.session_state["data_chosen"] = data_choice
-        st.session_state.pop("fig1", None)
-        st.session_state.pop("fig2", None)
-        st.session_state.pop("fig3", None)
-        st.session_state.pop("fig4", None)
-        if data_choice == "RCVS - District":
-            tabA, tabB = st.tabs(["Rate Matrix", "Rate Choropleth"])
-            st.session_state["fig1"] = plot_rate_matrix(built_table["rate_per_capita"])
-            st.session_state["fig2"] = plot_rate_choropleth(boundary_district, built_table["rate_per_capita"])
-        elif data_choice == "RCOS - District":
-            tabA, tabB = st.tabs(["Rate Matrix", "Rate Choropleth"])
-            st.session_state["fig1"] = plot_rate_matrix(built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district")
-            st.session_state["fig2"] = plot_rate_choropleth(boundary_district, built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district")
-        elif data_choice == "RCVS - Anzsoc":
-            tabA, tabB, tabC = st.tabs(["Bar Chart", "Rate Matrix", "Area Chart"])
-            st.session_state["fig1"] = plot_anzsoc_bar(built_table["rate_per_capita"])
-            st.session_state["fig3"] = plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - victim", ytitle="Type of Crime")        
-            st.session_state["fig4"] = plot_anzsoc_area(built_table["rate_per_capita"])    
-        elif data_choice == "RCOS - Anzsoc":
-            tabA, tabB, tabC = st.tabs(["Bar Chart", "Rate Matrix", "Area Chart"])
-            st.session_state["fig1"] = plot_anzsoc_bar(built_table["rate_per_capita"], title="Crime classification - offender")
-            st.session_state["fig3"] = plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - offender", ytitle="Type of Crime")        
-            st.session_state["fig4"] = plot_anzsoc_area(built_table["rate_per_capita"], title="Crime classification - offender")     
-    
-    if "fig1" in st.session_state:
+
+    if st.session_state["data_chosen"] == "RCVS - District":
+        tabA, tabB = st.tabs(["Rate Matrix", "Rate Choropleth"])
         with tabA:
-            st.plotly_chart(st.session_state["fig1"], use_container_width=True)
-    if "fig2" in st.session_state:
+            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"]), use_container_width=True)
         with tabB:
-            st.pyplot(st.session_state["fig2"], use_container_width=True, clear_figure=True)
-    if "fig3" in st.session_state:
+            st.pyplot(plot_rate_choropleth(boundary_district, built_table["rate_per_capita"]), use_container_width=True)
+    elif st.session_state["data_chosen"] == "RCOS - District":
+        tabA, tabB = st.tabs(["Rate Matrix", "Rate Choropleth"])
+        with tabA:
+            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district"), use_container_width=True)
         with tabB:
-            st.plotly_chart(st.session_state["fig3"], use_container_width=True)
-    if "fig4" in st.session_state:
+            st.pyplot(plot_rate_choropleth(boundary_district, built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district"), use_container_width=True)
+    elif st.session_state["data_chosen"] == "RCVS - Anzsoc":
+        tabA, tabB, tabC = st.tabs(["Bar Chart", "Rate Matrix", "Area Chart"])
+        with tabA:
+            st.plotly_chart(plot_anzsoc_bar(built_table["rate_per_capita"]), use_container_width=True)
+        with tabB:
+            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - victim", ytitle="Type of Crime"), use_container_width=True)       
         with tabC:
-            st.plotly_chart(st.session_state["fig4"], use_container_width=True)
+            st.plotly_chart(plot_anzsoc_area(built_table["rate_per_capita"]), use_container_width=True)
+    elif st.session_state["data_chosen"] == "RCOS - Anzsoc":
+        tabA, tabB, tabC = st.tabs(["Bar Chart", "Rate Matrix", "Area Chart"])
+        with tabA:
+            st.plotly_chart(plot_anzsoc_bar(built_table["rate_per_capita"], title="Crime classification - offender"), use_container_width=True)
+        with tabB:
+            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - offender", ytitle="Type of Crime"), use_container_width=True)   
+        with tabC:
+            st.plotly_chart(plot_anzsoc_area(built_table["rate_per_capita"], title="Crime classification - offender"), use_container_width=True)   
+    
 
     # Data and statistics toggle
     columns_to_keep = ['district', 'count', 'period', 'year', 'population', 'rate_per_capita']
     built_table["short_df"] = built_table["rate_per_capita"][columns_to_keep]
-    with st.expander("Data Viewer"):
+    with st.expander(f"Data Viewer ({st.session_state['data_chosen']})"):
         st.dataframe(rcvs_tables["TableB.csv"], use_container_width=True, height=420)
     with st.expander("Summary Statistics"):
         st.dataframe(built_table["short_df"].describe().T, use_container_width=True)
@@ -437,9 +487,10 @@ if st.session_state["data_ok"] == True:
     st.divider()
 
     st.header("Exploratory Data")
-    fig1 = plot_stacked_bar(activity_tables["Occ Type.csv"])
-    st.plotly_chart(fig1, use_container_width=True)
+    fig_1 = plot_stacked_bar(activity_tables["Occ Type.csv"])
+    st.plotly_chart(fig_1, use_container_width=True)
 
-    fig2 = plot_anzsoc_treemap(st.session_state["act_tableB"])
-    st.plotly_chart(fig2, use_container_width=True)
+    fig_2 = plot_anzsoc_treemap(st.session_state["act_tableB"])
+    st.plotly_chart(fig_2, use_container_width=True)
+
 

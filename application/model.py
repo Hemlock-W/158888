@@ -22,14 +22,7 @@ from scipy.stats import randint, uniform
 
 from forecasting import build_features, get_feature_cols
 
-LAG_FEATURE_PREFIXES = ("lag_",)
-
-
-def _lag_feature_columns(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if any(c.startswith(p) for p in LAG_FEATURE_PREFIXES)]
-
-
-def _to_timestamp_series(df: pd.DataFrame) -> pd.Series:
+def _to_timestamp_series(df:pd.DataFrame) -> pd.Series:
     return df["period"].apply(lambda p: p.to_timestamp())
 
 
@@ -42,7 +35,7 @@ def _fold_metrics_from_preds(y_true, y_pred, fold_idx):
     }
 
 
-def _aggregate_fold_metrics(fold_metrics: list[dict]) -> dict:
+def _aggregate_fold_metrics(fold_metrics:list[dict]) -> dict:
     return {
         "mae": np.mean([m["mae"] for m in fold_metrics]),
         "rmse": np.mean([m["rmse"] for m in fold_metrics]),
@@ -52,22 +45,14 @@ def _aggregate_fold_metrics(fold_metrics: list[dict]) -> dict:
 
 # --------------------------------------------------------------------------
 # Shared expanding-window walk-forward CV — used by Prophet and statsmodels
-# so the CV logic isn't duplicated per model. sklearn keeps its own version
-# below since it operates on a feature matrix (X) rather than a raw series.
 # --------------------------------------------------------------------------
 def walk_forward_evaluate_series(
-    series: pd.Series,
+    series:pd.Series,
     fit_predict_fn,
-    n_splits: int = 5,
-    test_size: int = 6,
-    min_train: int = 24,
+    n_splits:int  = 5,
+    test_size:int = 6,
+    min_train:int = 24,
 ):
-    """
-    Generic expanding-window walk-forward CV for any univariate method
-    exposed as `fit_predict_fn(train_series, horizon) -> array-like`.
-    Same fold convention as the sklearn version: fold 0 is the most
-    recent test window, folds step backward through history from there.
-    """
     n = len(series)
     if n < min_train + test_size:
         raise ValueError(
@@ -99,15 +84,15 @@ def walk_forward_evaluate_series(
 
 
 # --------------------------------------------------------------------------
-# 1. scikit-learn 
+# 1. Scikit-learn 
 # --------------------------------------------------------------------------
 def walk_forward_evaluate(
-    df: pd.DataFrame,
-    feature_cols: list,
+    df:pd.DataFrame,
+    feature_cols:list,
     model,
-    n_splits: int = 5,
-    test_size: int = 6,
-    use_log: bool = True,
+    n_splits:int  = 5,
+    test_size:int = 10,
+    use_log:bool  = True,
 ):
     """Expanding-window walk-forward CV for an sklearn-style model (X, y)."""
     df_clean = df.dropna(subset=feature_cols + ["count"]).reset_index(drop=True)
@@ -150,12 +135,12 @@ def get_tuned_model(X_train, y_train, use_log=True):
     y_train_t = np.log1p(y_train) if use_log else y_train
 
     param_distributions = {
-        "n_estimators": randint(100, 500),
-        "max_depth": randint(3, 8),
-        "learning_rate": uniform(0.01, 0.2),
-        "subsample": uniform(0.6, 0.4),
-        "min_samples_split": randint(2, 20),
-        "min_samples_leaf": randint(1, 10),
+        "n_estimators": randint(100, 500), #400
+        "max_depth": randint(3, 8), #6
+        "learning_rate": uniform(0.01, 0.2),    #0.2
+        "subsample": uniform(0.6, 0.4), #0.6
+        "min_samples_split": randint(2, 20),    #9
+        "min_samples_leaf": randint(1, 10), #16
     }
 
     base = GradientBoostingRegressor(random_state=42)
@@ -170,13 +155,13 @@ def get_tuned_model(X_train, y_train, use_log=True):
 
 
 def sklearn_forecast(
-    long_df: pd.DataFrame,
-    district: str,
-    n_periods_ahead: int = 6,
-    model=None,
-    test_size: int = 6,
-    use_log: bool = True,
-    tune: bool = True,
+    long_df:pd.DataFrame,
+    district:str,
+    n_periods_ahead:int = 6,
+    model               = None,
+    test_size:int       = 10,
+    use_log:bool        = True,
+    tune:bool           = True,
 ):
     freq = long_df.attrs.get("freq", "M")
     df = long_df[long_df["district"] == district].sort_values("period").reset_index(drop=True)
@@ -199,21 +184,17 @@ def sklearn_forecast(
     X_train, X_test = X.iloc[:-test_size], X.iloc[-test_size:]
     y_train, y_test = y.iloc[:-test_size], y.iloc[-test_size:]
 
-    # Tune FIRST (using only X_train, never the final holdout), then reuse
-    # the SAME resulting hyperparameters for walk-forward CV  
+    # Tune (using only X_train, never the final holdout), then reuse
+    # the resulting hyperparameters for walk-forward CV  
     # Nested CV removes that bias but is far more expensive
     if tune:
         best_model, best_params = get_tuned_model(X_train, y_train, use_log=use_log)
         cv_model = clone(best_model)
     else:
-        best_model = model or GradientBoostingRegressor(
-            n_estimators=200, max_depth=5, learning_rate=0.08, random_state=42
-        )
+        best_model = model
         best_model.fit(X_train, np.log1p(y_train) if use_log else y_train)
         best_params = None
-        cv_model = clone(model) if model is not None else GradientBoostingRegressor(
-            n_estimators=200, max_depth=5, learning_rate=0.08, random_state=42
-        )
+        cv_model = clone(model)
 
     agg_metrics, fold_metrics = walk_forward_evaluate(
         df_model, feature_cols, cv_model, n_splits=5, test_size=test_size, use_log=use_log
@@ -229,6 +210,13 @@ def sklearn_forecast(
         "rmse": np.sqrt(mean_squared_error(y_test, y_pred_test)),
         "mape": mean_absolute_percentage_error(y_test, y_pred_test),
     }
+
+    holdout_df = pd.DataFrame({
+        "period": df_model["period"].iloc[-test_size:].values,
+        "actual": y_test.values,
+        "predicted": y_pred_test,
+    })
+    holdout_df["date"] = holdout_df["period"].apply(lambda p: p.to_timestamp())
 
     best_model.fit(X, np.log1p(y) if use_log else y)
 
@@ -265,6 +253,7 @@ def sklearn_forecast(
         "fold_metrics": fold_metrics,
         "forecast": forecast_df,
         "best_params": best_params,
+        "holdout": holdout_df,
     }
 
 
@@ -272,14 +261,11 @@ def sklearn_forecast(
 # 2. Prophet
 # --------------------------------------------------------------------------
 PROPHET_PARAM_GRID = [
-    {"changepoint_prior_scale": 0.05, "seasonality_prior_scale": 10.0, "seasonality_mode": "additive"},
-    {"changepoint_prior_scale": 0.1, "seasonality_prior_scale": 10.0, "seasonality_mode": "additive"},
-    {"changepoint_prior_scale": 0.5, "seasonality_prior_scale": 10.0, "seasonality_mode": "multiplicative"},
-    {"changepoint_prior_scale": 0.01, "seasonality_prior_scale": 1.0, "seasonality_mode": "additive"},
+    {"changepoint_prior_scale": 0.25, "seasonality_prior_scale": 30.0, "seasonality_mode": "additive"},
 ]
 
 
-def _prophet_fit_predict(train_series: pd.Series, horizon: int, freq_str: str, params: dict, use_log: bool):
+def _prophet_fit_predict(train_series:pd.Series, horizon:int, freq_str:str, params:dict, use_log:bool):
     train_df = pd.DataFrame({"ds": train_series.index, "y": train_series.values})
     if use_log:
         train_df["y"] = np.log1p(train_df["y"])
@@ -293,7 +279,7 @@ def _prophet_fit_predict(train_series: pd.Series, horizon: int, freq_str: str, p
     return np.expm1(preds) if use_log else preds
 
 
-def get_tuned_prophet_params(series, freq_str, use_log, n_splits=3, test_size=6):
+def get_tuned_prophet_params(series, freq_str, use_log, n_splits = 3, test_size = 6):
     """Small grid search over Prophet hyperparameters, scored via walk-forward CV."""
     best_params, best_score = None, np.inf
     for params in PROPHET_PARAM_GRID:
@@ -308,13 +294,13 @@ def get_tuned_prophet_params(series, freq_str, use_log, n_splits=3, test_size=6)
 
 
 def prophet_forecast(
-    long_df: pd.DataFrame,
-    district: str,
-    n_periods_ahead: int = 6,
-    test_size: int = 6,
-    use_log: bool = True,
-    tune: bool = True,
-    n_splits: int = 5,
+    long_df:pd.DataFrame,
+    district:str,
+    n_periods_ahead:int = 6,
+    test_size:int       = 10,
+    use_log:bool        = True,
+    tune:bool           = True,
+    n_splits:int        = 5,
 ):
     freq = long_df.attrs.get("freq", "M")
     freq_str = "MS" if freq == "M" else "YS"
@@ -344,6 +330,12 @@ def prophet_forecast(
         "mape": mean_absolute_percentage_error(test_series, y_pred_test),
     }
 
+    holdout_df = pd.DataFrame({
+        "date": test_series.index,
+        "actual": test_series.values,
+        "predicted": y_pred_test,
+    })
+
     full_df = pd.DataFrame({"ds": series.index, "y": series.values})
     if use_log:
         full_df["y"] = np.log1p(full_df["y"])
@@ -366,24 +358,19 @@ def prophet_forecast(
         "fold_metrics": fold_metrics,
         "forecast": forecast_tail,
         "best_params": best_params,
+        "holdout": holdout_df,
     }
 
 
 # --------------------------------------------------------------------------
-# 3. statsmodels 
+# 3. Statsmodels 
 # --------------------------------------------------------------------------
 ETS_PARAM_GRID = [
-    {"trend": "add", "damped_trend": False, "seasonal": "add"},
-    {"trend": "add", "damped_trend": True, "seasonal": "add"},
-    {"trend": "add", "damped_trend": False, "seasonal": "mul"},
-    {"trend": None, "damped_trend": False, "seasonal": "add"},
+    {"trend": None, "damped_trend": True, "seasonal": "add"},
 ]
 
 SARIMA_PARAM_GRID = [
-    {"order": (1, 1, 1), "seasonal_order": (1, 1, 1, 12)},
-    {"order": (2, 1, 1), "seasonal_order": (1, 1, 1, 12)},
     {"order": (1, 1, 0), "seasonal_order": (0, 1, 1, 12)},
-    {"order": (0, 1, 1), "seasonal_order": (1, 1, 0, 12)},
 ]
 
 
@@ -430,14 +417,14 @@ def get_tuned_statsmodels_params(series, method, seasonal_periods, use_log, n_sp
 
 
 def statsmodels_forecast(
-    long_df: pd.DataFrame,
-    district: str,
-    n_periods_ahead: int = 6,
-    method: str = "ets",
-    test_size: int = 6,
-    use_log: bool = True,
-    tune: bool = True,
-    n_splits: int = 5,
+    long_df:pd.DataFrame,
+    district:str,
+    n_periods_ahead:int = 6,
+    method:str          = "ets",
+    test_size:int       = 10,
+    use_log:bool        = True,
+    tune:bool           = True,
+    n_splits:int        = 5,
 ):
     freq = long_df.attrs.get("freq", "M")
     df = long_df[long_df["district"] == district].sort_values("period").copy()
@@ -473,6 +460,12 @@ def statsmodels_forecast(
         "mape": mean_absolute_percentage_error(test_series, y_pred_test),
     }
 
+    holdout_df = pd.DataFrame({
+        "date": test_series.index,
+        "actual": test_series.values,
+        "predicted": y_pred_test,
+    })
+
     y_full = np.log1p(series) if use_log else series
     if method == "ets":
         model = ExponentialSmoothing(
@@ -502,6 +495,7 @@ def statsmodels_forecast(
         "fold_metrics": fold_metrics,
         "forecast": forecast_df,
         "best_params": best_params,
+        "holdout": holdout_df,
     }
 
 
@@ -509,14 +503,14 @@ def statsmodels_forecast(
 # 4. Run all three and line the results up for comparison
 # --------------------------------------------------------------------------
 def compare_models(
-    long_df: pd.DataFrame,
-    district: str,
-    n_periods_ahead: int = 4,
-    test_size: int = 6,
-    sarima_or_ets: str = "ets",
-    use_log: bool = True,
-    tune: bool = True,
-    n_splits: int = 5,
+    long_df:pd.DataFrame,
+    district:str,
+    n_periods_ahead:int = 4,
+    test_size:int       = 10,
+    sarima_or_ets:str   = "ets",
+    use_log:bool        = True,
+    tune:bool           = True,
+    n_splits:int        = 5,
 ):
     sk = sklearn_forecast(long_df, district, n_periods_ahead, test_size=test_size, use_log=use_log, tune=tune)
     pr = prophet_forecast(long_df, district, n_periods_ahead, test_size=test_size, use_log=use_log, tune=tune, n_splits=n_splits)

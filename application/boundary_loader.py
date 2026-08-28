@@ -15,22 +15,21 @@ def _norm(s: str) -> str:
 class BoundaryDataLoader:
     def __init__(
         self,
-        meshblock_shp: str,
-        district_shp: str,
-        population_col = ("GENERAL_EL", "MAORI_ELEC"),
-        district_name_col: str = "DISTRICT_N",
-        missing_value_sentinel: int = -999,
+        meshblock_shp:str,
+        district_shp:str,
+        population_col              = ("GENERAL_EL", "MAORI_ELEC"),
+        district_name_col:str       = "DISTRICT_N",
+        missing_value_sentinel:int  = -999,
     ):
-        self.meshblock_shp = meshblock_shp
-        self.district_shp = district_shp
-        self.population_col = list(population_col)
-        self.district_name_col = district_name_col
+        self.meshblock_shp          = meshblock_shp
+        self.district_shp           = district_shp
+        self.population_col         = list(population_col)
+        self.district_name_col      = district_name_col
         self.missing_value_sentinel = missing_value_sentinel
 
     # ------------------------------------------------------------------
     # Loading + inspection
     # ------------------------------------------------------------------
-    
     def load_meshblocks(self) -> gpd.GeoDataFrame:
         return gpd.read_file(self.meshblock_shp)
 
@@ -54,6 +53,7 @@ class BoundaryDataLoader:
             "district_crs": str(dist.crs),
             "district_sample": self.drop_geometry(dist),
         }
+
 
     # ------------------------------------------------------------------
     # Aggregation
@@ -91,10 +91,11 @@ class BoundaryDataLoader:
         pop_by_district["population"] = pop_by_district[self.population_col].sum(axis=1)
         pop_by_district.rename(columns={self.district_name_col: "district"}, inplace=True)
         return pop_by_district
+
         
     def missing_population(
-        self, long_df: pd.DataFrame, pop_df: pd.DataFrame,
-        drop_labels=("Not Specified",), total_label: str = "Total",
+        self, long_df:pd.DataFrame, pop_df:pd.DataFrame,
+        drop_labels = ("Not Specified",), total_label:str = "Total",
     ) -> pd.DataFrame:
         long_df = long_df.copy()
         pop_df = pop_df.copy()
@@ -129,11 +130,13 @@ class BoundaryDataLoader:
             print(f"Warning: still no population match for: {list(still_missing)}")
  
         return merged
+
+    
     # ------------------------------------------------------------------
-    # Merge with your crime long_df
+    # Merge with long_df
     # ------------------------------------------------------------------
     def merge_with_crime_data(
-        self, long_df: pd.DataFrame, per: int = 10000
+        self, long_df:pd.DataFrame, per:int = 10000
     ) -> pd.DataFrame:
         pop_df = self.population_by_district()
         merged = long_df.merge(pop_df, on="district", how="left")

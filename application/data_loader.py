@@ -1,8 +1,12 @@
+"""
+Load all datasets (RCVS, RCOS and Activity from specific path)
+Dataset cleaning or reformatting
+"""
+
 import pandas as pd
 import streamlit as st
 import dateparser
 import re
-import numpy as np
 
 _COMMA_NUMBER_RE = re.compile(r"^-?\d{1,3}(,\d{3})*(\.\d+)?$")
 
@@ -10,25 +14,27 @@ def _comma_number(value) -> bool:
     if pd.isna(value):
         return True  # missing values don't disqualify the column
     return bool(_COMMA_NUMBER_RE.match(str(value).strip()))
-def _clean_count_column(series: pd.Series) -> pd.Series:
-        cleaned = (
-            series.astype(str)
-            .str.replace(",", "", regex=False)
-            .str.strip()
-            .replace({"": None, "nan": None, "None": None})
-        )
-        return pd.to_numeric(cleaned, errors="coerce").astype("Int64")
+
+
+def _clean_count_column(series:pd.Series) -> pd.Series:
+    cleaned = (
+        series.astype(str)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+        .replace({"": None, "nan": None, "None": None})
+    )
+    return pd.to_numeric(cleaned, errors="coerce").astype("Int64")
 
 class DataLoader:
     def __init__(
         self,
-        base_dir: str = "../dataset",
-        rcvs_subdir: str = "RCVS",
-        rcos_subdir: str = "RCOS",
-        activity_subdir: str = "Activity",
-        rcvs_filenames=None,
-        rcos_filenames=None,
-        activity_filenames=None,
+        base_dir:str        = "../dataset",
+        rcvs_subdir:str     = "RCVS",
+        rcos_subdir:str     = "RCOS",
+        activity_subdir:str = "Activity",
+        rcvs_filenames      = None,
+        rcos_filenames      = None,
+        activity_filenames  = None,
     ):
         self.base_dir = base_dir
         self.rcvs_subdir = f"{base_dir}/{rcvs_subdir}"
@@ -36,19 +42,17 @@ class DataLoader:
         self.activity_subdir = f"{base_dir}/{activity_subdir}"
 
         self.rcvs_filenames = rcvs_filenames or [
-            "ANSOC Bar AEG.csv", "Boundary bar AEG.csv", "Map sheet.csv",
-            "TableA.csv", "TableB.csv", "Trend AEG.csv",
+            "TableA.csv", "TableB.csv",
         ]
         self.rcos_filenames = rcos_filenames or [
-            "ANSOC Bar AEG.csv", "Boundary bar AEG.csv", "Age and Sex AES.csv",
-            "Ethnicity AES.csv", "TableA.csv", "TableB.csv", "Trend AEG.csv",
+            "Ethnicity AES.csv", "TableA.csv", "TableB.csv",
         ]
         self.activity_filenames = activity_filenames or [
-            "Boundary Districts.csv", "Occ Type.csv", "TableA.csv", "TableB.csv",
+            "Occ Type.csv", "TableB.csv",
         ]
 
     @st.cache_data(show_spinner="Fetching CSV files…")
-    def _fetch_csvs(_self, directory: str, filenames: list[str]) -> dict[str, pd.DataFrame]:
+    def _fetch_csvs(_self, directory:str, filenames:list[str]) -> dict[str, pd.DataFrame]:
         """Read a list of CSVs from self.dir, keyed by filename."""
         return {
             fname: pd.read_csv(f"{directory}/{fname}", sep="\t", encoding="utf-16")
@@ -94,7 +98,7 @@ class DataLoader:
         df.columns.name = None
         return df
 
-    def to_date(_self, df:pd.DataFrame, col, formatting="%B %Y") -> pd.DataFrame:
+    def to_date(_self, df:pd.DataFrame, col, formatting = "%B %Y") -> pd.DataFrame:
         df[col] = df[col].apply(dateparser.parse)
         df[col] = pd.to_datetime(df[col], format=formatting)
         return df
@@ -106,7 +110,3 @@ class DataLoader:
         df = df.sort_index()
         df.columns = col
         return df
-    
-    def print_statement(_self, tables):
-        for df_name, df in tables.items():
-            st.markdown(df.info())

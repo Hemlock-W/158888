@@ -25,16 +25,17 @@ def parse_period(col: str):
 
     return None, None
 
-
-# 1. Reshape: wide (district x year columns) -> long (district, year, count)
-def wide_to_long(df: pd.DataFrame, id_col = "Police District") -> pd.DataFrame:
+# --------------------------------------------------------------------------
+# 1. Reshape: wide (district x year columns) -> long (district, year, count) 
+# --------------------------------------------------------------------------
+def wide_to_long(df:pd.DataFrame, id_col = "Police District") -> pd.DataFrame:
     period_cols, periods, freq = [], [], None
     for col in df.columns:
         period, col_freq = parse_period(col)
         if period is not None:
             period_cols.append(col)
             periods.append(period)
-            freq = col_freq  # assume a single file is consistently Y or M
+            freq = col_freq
 
     if isinstance(id_col, str):
         id_vars = [id_col]
@@ -66,10 +67,10 @@ def wide_to_long(df: pd.DataFrame, id_col = "Police District") -> pd.DataFrame:
 # 2. Handle a partial current year (data only runs to ~mid-year)
 # --------------------------------------------------------------------------
 def annualize_partial_year(
-    long_df: pd.DataFrame,
-    partial_year: int,
-    months_elapsed: int,
-    method: str = "exclude",
+    long_df:pd.DataFrame,
+    partial_year:int,
+    months_elapsed:int,
+    method:str = "exclude",
 ) -> pd.DataFrame:
     
     long_df = long_df.copy()
@@ -82,7 +83,10 @@ def annualize_partial_year(
     else:
         raise ValueError("method must be 'exclude' or 'scale'")
 
-def build_features(df: pd.DataFrame, freq: str = "M") -> pd.DataFrame:
+# --------------------------------------------------------------------------
+# 3. Build lags, rolling and difference statistics 
+# --------------------------------------------------------------------------
+def build_features(df:pd.DataFrame, freq:str = "M") -> pd.DataFrame:
     df = df.copy()
  
     lags = [1, 2, 3, 6, 12] if freq == "M" else [1, 2, 3]
@@ -130,7 +134,7 @@ def build_features(df: pd.DataFrame, freq: str = "M") -> pd.DataFrame:
     return df
  
  
-def get_feature_cols(df: pd.DataFrame) -> list:
+def get_feature_cols(df:pd.DataFrame) -> list:
     # diff_1/diff_12 (and similar) are computed as *current* count minus a
     # past count, leaking data
     exclude = {"district", "count", "period", "date", "yoy_ratio"}
@@ -138,7 +142,7 @@ def get_feature_cols(df: pd.DataFrame) -> list:
     return [c for c in df.columns if c not in exclude]
  
  
-def make_lag_features(long_df: pd.DataFrame) -> pd.DataFrame:
+def make_lag_features(long_df:pd.DataFrame) -> pd.DataFrame:
     freq = long_df.attrs.get("freq", "Y")
     long_df = long_df.sort_values(["district", "period"]).copy()
  
@@ -151,12 +155,13 @@ def make_lag_features(long_df: pd.DataFrame) -> pd.DataFrame:
     return result
  
 
-
-# 4. Forecast next year per district
+# --------------------------------------------------------------------------
+# 4. Forecast next year per district 
+# --------------------------------------------------------------------------
 def forecast_next_year(
-    long_df: pd.DataFrame,
-    n_periods_ahead: int = 1,
-    min_periods_required: int = 4,
+    long_df:pd.DataFrame,
+    n_periods_ahead:int = 1,
+    min_periods_required:int = 4,
 ) -> pd.DataFrame:
     
     freq = long_df.attrs.get("freq", "Y")
@@ -192,7 +197,7 @@ def forecast_next_year(
     return result_df
 
 
-def forecast_national_total(long_df: pd.DataFrame, n_years_ahead: int = 1) -> pd.DataFrame:
+def forecast_national_total(long_df:pd.DataFrame, n_years_ahead:int = 1) -> pd.DataFrame:
     """Same approach applied to the summed national series."""
     national = long_df.groupby("period", as_index=False)["count"].sum()
     national["district"] = "New Zealand (Total)"
@@ -204,11 +209,11 @@ def forecast_national_total(long_df: pd.DataFrame, n_years_ahead: int = 1) -> pd
 # 5. Convenience: run the whole pipeline
 # --------------------------------------------------------------------------
 def run_forecast_pipeline(
-    raw_df: pd.DataFrame,
-    id_col = "Police District",
-    partial_year: int | None = None,
-    months_elapsed: int | None = None,
-    n_years_ahead: int = 1,
+    raw_df:pd.DataFrame,
+    id_col                      = "Police District",
+    partial_year:int | None     = None,
+    months_elapsed:int | None   = None,
+    n_years_ahead:int           = 1,
 ):
     long_df = wide_to_long(raw_df, id_col=id_col)
     freq = long_df.attrs.get("freq", "Y")
