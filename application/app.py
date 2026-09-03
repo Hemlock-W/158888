@@ -7,7 +7,7 @@ locale.setlocale(locale.LC_ALL, "C")
 
 from data_loader import DataLoader
 from boundary_loader import BoundaryDataLoader
-from forecasting import run_forecast_pipeline
+from feature_engineering import run_forecast_pipeline
 from model import sklearn_forecast, statsmodels_forecast, prophet_forecast
 from visualize import (plot_rate_choropleth, plot_rate_matrix, 
                        plot_anzsoc_bar, plot_stacked_bar, 
@@ -188,7 +188,7 @@ def clean_dataset(loader:DataLoader, rcvs_tables, rcos_tables, activity_tables):
 # --------------------------------------------------------------------------
 st.title("NZ Crime Rate Forecasting")
 st.caption("""Crime Rate Forecasting for New Zealand 
-    (dataset taken from NZ Police Data-https://www.police.govt.nz/about-us/publications-statistics/data-and-statistics/policedatanz)""")
+    (dataset taken from NZ Police Data- https://www.police.govt.nz/about-us/publications-statistics/data-and-statistics/policedatanz)""")
 st.divider()
 
 if "data_ok" not in st.session_state:
@@ -245,7 +245,7 @@ if st.session_state["data_ok"] == True:
         data_choice = st.selectbox(
             "Choose a dataset",
             list(DATA_INFO.keys()),
-            index=0,
+            index=st.session_state["data_chosen"],
         )
     with data_desc:
         st.markdown(f"**Description:** {DATA_INFO[data_choice]['desc']}")
@@ -305,6 +305,8 @@ if st.session_state["data_ok"] == True:
 
     DISTRICTS_SEL = built_table["rate_per_capita"]["district"].unique()
 
+    if not "chosen" in st.session_state:
+        st.session_state["chosen"] = MODEL_INFO[0]
     if not "chosen2" in st.session_state:
         st.session_state["chosen2"] = DISTRICTS_SEL[0]
 
@@ -312,7 +314,7 @@ if st.session_state["data_ok"] == True:
         chosen = st.selectbox(
             "Choose a prediction model",
             list(MODEL_INFO.keys()),
-            index=8,
+            index=st.session_state["chosen"],
         )
     with col_desc:
         st.markdown(f"**Description:** {MODEL_INFO[chosen]['desc']}")
@@ -321,10 +323,11 @@ if st.session_state["data_ok"] == True:
             "Choose a division",
             DISTRICTS_SEL,
             format_func=lambda x: "New Zealand (Nation)" if x == "Total" else x,
-            index=0,
+            index=st.session_state["chosen2"],
         )
     with select_button:
         if st.button("Select"):
+            st.session_state["chosen"] = chosen
             st.session_state["chosen2"] = chosen2
             st.session_state["data_chosen"] = data_choice
             st.session_state["forecast_result"] = model_selection(
@@ -342,7 +345,7 @@ if st.session_state["data_ok"] == True:
 
         # Metrics row
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Model", chosen)
+        m1.metric("Model", st.session_state["chosen"])
         m2.metric("RMSE", f"{forecast_result['metrics_holdout']['rmse']:,.2f}")
         m3.metric("Mean Absolute Error", f"{forecast_result['metrics_holdout']['mae']:.2f}")
         m4.metric("Mean Absolute Percentage Error", f"{forecast_result['metrics_holdout']['mape']:,.2f}")
