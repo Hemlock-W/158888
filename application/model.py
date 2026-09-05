@@ -20,7 +20,7 @@ from sklearn.base import clone
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
 from scipy.stats import randint, uniform
 
-from forecasting import build_features, get_feature_cols
+from feature_engineering import build_features, get_feature_cols
 
 def _to_timestamp_series(df:pd.DataFrame) -> pd.Series:
     return df["period"].apply(lambda p: p.to_timestamp())

@@ -239,18 +239,18 @@ if st.session_state["data_ok"] == True:
     }
 
     if not "data_chosen" in st.session_state:
-        st.session_state["data_chosen"] = "RCVS - Anzsoc"
+        st.session_state["data_chosen"] = "RCVS - District"
 
     with data_sel: 
         data_choice = st.selectbox(
             "Choose a dataset",
             list(DATA_INFO.keys()),
-            index=st.session_state["data_chosen"],
+            index=list(DATA_INFO.keys()).index(st.session_state["data_chosen"]),
         )
     with data_desc:
         st.markdown(f"**Description:** {DATA_INFO[data_choice]['desc']}")
 
-    if data_choice != st.session_state["data_chosen"]:
+    if data_choice != st.session_state["data_chosen"] or not "build_features" in st.session_state:
         st.session_state["data_chosen"] = data_choice
         st.session_state["build_features"] = forecast_dataset(
             data_choice, id_col=DATA_INFO[data_choice]['dataset'].columns[0]
@@ -302,28 +302,25 @@ if st.session_state["data_ok"] == True:
 
     if "build_features" in st.session_state:
         built_table =  st.session_state["build_features"]
-
-    DISTRICTS_SEL = built_table["rate_per_capita"]["district"].unique()
-
-    if not "chosen" in st.session_state:
-        st.session_state["chosen"] = MODEL_INFO[0]
-    if not "chosen2" in st.session_state:
+        DISTRICTS_SEL = built_table["rate_per_capita"]["district"].unique()
         st.session_state["chosen2"] = DISTRICTS_SEL[0]
+    if not "chosen" in st.session_state:
+        st.session_state["chosen"] = list(MODEL_INFO.keys())[0]
 
     with col_sel:
         chosen = st.selectbox(
             "Choose a prediction model",
             list(MODEL_INFO.keys()),
-            index=st.session_state["chosen"],
+            index=list(MODEL_INFO.keys()).index(st.session_state["chosen"]),
         )
     with col_desc:
-        st.markdown(f"**Description:** {MODEL_INFO[chosen]['desc']}")
+        st.markdown(f"**Model Description:** {MODEL_INFO[chosen]['desc']}")
     with district_sel:
         chosen2 = st.selectbox(
             "Choose a division",
             DISTRICTS_SEL,
             format_func=lambda x: "New Zealand (Nation)" if x == "Total" else x,
-            index=st.session_state["chosen2"],
+            index=list(DISTRICTS_SEL).index(st.session_state["chosen2"]),
         )
     with select_button:
         if st.button("Select"):
@@ -483,7 +480,7 @@ if st.session_state["data_ok"] == True:
     columns_to_keep = ['district', 'count', 'period', 'year', 'population', 'rate_per_capita']
     built_table["short_df"] = built_table["rate_per_capita"][columns_to_keep]
     with st.expander(f"Data Viewer ({st.session_state['data_chosen']})"):
-        st.dataframe(rcvs_tables["TableB.csv"], use_container_width=True, height=420)
+        st.dataframe(built_table["short_df"], use_container_width=True, height=420)
     with st.expander("Summary Statistics"):
         st.dataframe(built_table["short_df"].describe().T, use_container_width=True)
 
