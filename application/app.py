@@ -256,6 +256,9 @@ if st.session_state["data_ok"] == True:
             data_choice, id_col=DATA_INFO[data_choice]['dataset'].columns[0]
         )
 
+        if "chosen2" in st.session_state:
+            st.session_state.pop("chosen2")
+
 
     # --------------------------------------------------------------------------
     # 2. Selection of Model and Division -> Model Forecast
@@ -303,9 +306,11 @@ if st.session_state["data_ok"] == True:
     if "build_features" in st.session_state:
         built_table =  st.session_state["build_features"]
         DISTRICTS_SEL = built_table["rate_per_capita"]["district"].unique()
-        st.session_state["chosen2"] = DISTRICTS_SEL[0]
+
     if not "chosen" in st.session_state:
         st.session_state["chosen"] = list(MODEL_INFO.keys())[0]
+    if not "chosen2" in st.session_state:
+        st.session_state["chosen2"] = DISTRICTS_SEL[0]
 
     with col_sel:
         chosen = st.selectbox(
@@ -349,7 +354,7 @@ if st.session_state["data_ok"] == True:
 
         st.divider()
         
-        st.header("Prediction Output")
+        st.header(f"Prediction Output: {st.session_state['data_chosen']}")
         tab1, tab2 = st.tabs(["Predicted and Actual Over Time", "Actual vs Predicted"])
     
         with tab1:

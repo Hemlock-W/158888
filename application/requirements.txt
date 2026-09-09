@@ -1,0 +1,21 @@
+streamlit>=1.37
+
+# --- Geospatioal ---
+geopandas>=0.14
+shapely>=2.0
+pyproj>=3.6
+pyogrio>=0.7
+
+# --- Core data handling ---
+pandas>=2.2,<3.0
+numpy>=1.26,<2.1
+ 
+# --- Forecasting models ---
+scikit-learn>=1.4
+scipy>=1.11
+statsmodels>=0.14.2
+prophet>=1.1.5
+
+# --- Visualisation ---
+matplotlib>=3.8
+plotly>=5.22
