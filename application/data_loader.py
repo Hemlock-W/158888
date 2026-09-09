@@ -5,7 +5,7 @@ Dataset cleaning or reformatting
 
 import pandas as pd
 import streamlit as st
-import dateparser
+#  import dateparser
 import re
 
 _COMMA_NUMBER_RE = re.compile(r"^-?\d{1,3}(,\d{3})*(\.\d+)?$")
@@ -99,7 +99,7 @@ class DataLoader:
         return df
 
     def to_date(_self, df:pd.DataFrame, col, formatting = "%B %Y") -> pd.DataFrame:
-        df[col] = df[col].apply(dateparser.parse)
+        df[col] = pd.to_datetime(df[col], errors="coerce")
         df[col] = pd.to_datetime(df[col], format=formatting)
         return df
 
