@@ -9,7 +9,7 @@ pyogrio>=0.7
 # --- Core data handling ---
 pandas>=2.2,<3.0
 numpy>=1.26,<2.1
-dateparser
+dateparser>=1.2
  
 # --- Forecasting models ---
 scikit-learn>=1.4
