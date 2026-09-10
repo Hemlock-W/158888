@@ -1,6 +1,3 @@
-[build]
-nixpacks = true
-
 [build.nixpacks]
 packages = [
   "gdal",
