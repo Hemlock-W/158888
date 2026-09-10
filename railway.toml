@@ -1,0 +1,12 @@
+[build]
+nixpacks = true
+
+[build.nixpacks]
+packages = [
+  "gdal",
+  "proj",
+  "geos",
+  "geos-dev",
+  "proj-dev",
+  "gdal-dev"
+]
