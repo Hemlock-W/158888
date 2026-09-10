@@ -1,4 +1,5 @@
 [build.nixpacks]
+language = "python"
 packages = [
   "gdal",
   "proj",
