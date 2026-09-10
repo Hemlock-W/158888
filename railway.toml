@@ -2,9 +2,11 @@
 language = "python"
 packages = [
   "gdal",
+  "gdal-dev",
   "proj",
+  "proj-dev",
   "geos",
   "geos-dev",
-  "proj-dev",
-  "gdal-dev"
+  "expat",
+  "expat-dev"
 ]
