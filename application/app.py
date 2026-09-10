@@ -108,8 +108,8 @@ def load_data():
         activity_tables = loader.fetch_activity()
 
         boundary_loader = BoundaryDataLoader(
-            meshblock_shp="../dataset/kx-2023-census-electoral-population-meshblock-2025-version-2-SHP/2023-census-electoral-population-meshblock-2025-version-2.shp",
-            district_shp="../dataset/kx-nz-police-district-boundaries-29-april-2021-SHP/nz-police-district-boundaries-29-april-2021.shp",
+            meshblock_shp="dataset/kx-2023-census-electoral-population-meshblock-2025-version-2-SHP/2023-census-electoral-population-meshblock-2025-version-2.shp",
+            district_shp="dataset/kx-nz-police-district-boundaries-29-april-2021-SHP/nz-police-district-boundaries-29-april-2021.shp",
         )
 
         data_cleaned, rcvs_tables, rcos_tables, activity_tables = clean_dataset(loader, 
