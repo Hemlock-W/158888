@@ -1,0 +1,2 @@
+dataset/kx-2023-census-electoral-population-meshblock-2025-version-2-SHP/* filter=lfs diff=lfs merge=lfs -text
+dataset/kx-nz-police-district-boundaries-29-april-2021-SHP/* filter=lfs diff=lfs merge=lfs -text

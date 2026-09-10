@@ -1,0 +1,43 @@
+<mxfile host="Electron" modified="2026-09-10T03:22:12.373Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/22.0.3 Chrome/114.0.5735.289 Electron/25.8.4 Safari/537.36" etag="coI24NUHMRCRax90bH-S" version="22.0.3" type="device">
+  <diagram name="Page-1" id="38z8lFTffOxwWq72-Q9E">
+    <mxGraphModel dx="1276" dy="606" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="V1QOHAMBr5yAZOa0lAKX-1" target="V1QOHAMBr5yAZOa0lAKX-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-1" value="&lt;font style=&quot;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Data Loader&lt;/span&gt;&lt;font style=&quot;&quot;&gt;&lt;br&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;Load exports files from Police Data NZ and perform data cleaning of stacked-header data.&lt;/font&gt;&lt;/font&gt;&lt;br&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="40" width="380" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="V1QOHAMBr5yAZOa0lAKX-2" target="V1QOHAMBr5yAZOa0lAKX-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-2" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Feature Engineering&lt;br&gt;&lt;/font&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;Convert wide-format data to frequency-aware time-series data before creating lags and rolling statistics from the data.&lt;/font&gt;" style="whiteSpace=wrap;html=1;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="195" y="140" width="430" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="V1QOHAMBr5yAZOa0lAKX-4" target="V1QOHAMBr5yAZOa0lAKX-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-4" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Modeling and Forecasting&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;Using user-selection model (Scikit-learn, Prophet or Statsmodel) and predefined hyperparameters to perform walk-forward cross-validation for short-term forecasting.&lt;/font&gt;" style="whiteSpace=wrap;html=1;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="250" width="420" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="V1QOHAMBr5yAZOa0lAKX-6" target="V1QOHAMBr5yAZOa0lAKX-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-6" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Geospatial Normalization&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;Obtain per capita rate conversion by joining with 2023 meshblock population and NZ police boundary districts.&lt;/font&gt;" style="whiteSpace=wrap;html=1;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="370" width="420" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="V1QOHAMBr5yAZOa0lAKX-8" target="V1QOHAMBr5yAZOa0lAKX-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-8" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Visualization Layer&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;Allow visualize of data through heatmaps, choropleth maps, stacked bar charts and stacked area charts.&lt;/font&gt;" style="whiteSpace=wrap;html=1;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="480" width="420" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="V1QOHAMBr5yAZOa0lAKX-10" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;Application Layer&lt;br&gt;&lt;/font&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;Streamlit interactive layour interface.&lt;/font&gt;" style="whiteSpace=wrap;html=1;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="590" width="380" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

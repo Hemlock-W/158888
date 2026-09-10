@@ -1,0 +1,12 @@
+[build.nixpacks]
+language = "python"
+packages = [
+  "gdal",
+  "gdal-dev",
+  "proj",
+  "proj-dev",
+  "geos",
+  "geos-dev",
+  "expat",
+  "expat-dev"
+]
