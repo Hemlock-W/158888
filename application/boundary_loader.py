@@ -8,7 +8,6 @@ from __future__ import annotations
 import geopandas as gpd
 import pandas as pd
 import numpy as np
-from pathlib import Path 
 
 def _norm(s: str) -> str:
     return str(s).strip().casefold()
@@ -32,7 +31,6 @@ class BoundaryDataLoader:
     # Loading + inspection
     # ------------------------------------------------------------------
     def load_meshblocks(self) -> gpd.GeoDataFrame:
-        print(Path(self.meshblock_shp).exists())
         return gpd.read_file(self.meshblock_shp)
 
     def load_districts(self) -> gpd.GeoDataFrame:
