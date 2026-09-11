@@ -1,6 +1,7 @@
 [build.nixpacks]
 language = "python"
 git_lfs = true
+git_clone_depth = 0
 packages = [
   "gdal",
   "gdal-dev",
