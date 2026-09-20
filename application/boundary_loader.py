@@ -17,8 +17,8 @@ def _norm(s: str) -> str:
 class BoundaryDataLoader:
     def __init__(
         self,
-        meshblock_shp:str           = "dataset/kx-2023-census-electoral-population-meshblock-2025-version-2-SHP/meshblock.gpkg",
-        district_shp:str            = "dataset/kx-nz-police-district-boundaries-29-april-2021-SHP/district.gpkg",
+        meshblock_shp:str           = "../dataset/kx-2023-census-electoral-population-meshblock-2025-version-2-SHP/meshblock.gpkg",
+        district_shp:str            = "../dataset/kx-nz-police-district-boundaries-29-april-2021-SHP/district.gpkg",
         population_col              = ("GENERAL_EL", "MAORI_ELEC"),
         district_name_col:str       = "DISTRICT_N",
         missing_value_sentinel:int  = -999,
