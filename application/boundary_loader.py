@@ -18,7 +18,7 @@ class BoundaryDataLoader:
     def __init__(
         self,
         meshblock_shp:str           = "data/meshblock.gpkg",
-        district_shp:str            = "dataset/kx-nz-police-district-boundaries-29-april-2021-SHP/district.gpkg",
+        district_shp:str            = "data/district.gpkg",
         population_col              = ("GENERAL_EL", "MAORI_ELEC"),
         district_name_col:str       = "DISTRICT_N",
         missing_value_sentinel:int  = -999,
@@ -33,10 +33,6 @@ class BoundaryDataLoader:
     # Loading + inspection
     # ------------------------------------------------------------------
     def load_meshblocks(self) -> gpd.GeoDataFrame:
-        st.markdown(Path("/data").exists())
-        st.markdown(Path("data").exists())
-        st.markdown(Path(self.meshblock_shp).exists())
-        st.markdown(Path(self.meshblock_shp).stat().st_size)
         return gpd.read_file(self.meshblock_shp)
 
     def load_districts(self) -> gpd.GeoDataFrame:
