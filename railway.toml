@@ -1,5 +1,6 @@
 [build.nixpacks]
 language = "python"
+USE_VOLUME_ROOT=1
 packages = [
   "gdal",
   "gdal-dev",
