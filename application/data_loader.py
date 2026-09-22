@@ -28,7 +28,7 @@ def _clean_count_column(series:pd.Series) -> pd.Series:
 class DataLoader:
     def __init__(
         self,
-        base_dir:str        = "../dataset",
+        base_dir:str        = "dataset",
         rcvs_subdir:str     = "RCVS",
         rcos_subdir:str     = "RCOS",
         activity_subdir:str = "Activity",
