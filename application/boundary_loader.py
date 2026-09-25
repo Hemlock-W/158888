@@ -34,7 +34,7 @@ class BoundaryDataLoader:
     # ------------------------------------------------------------------
     def load_meshblocks(self) -> gpd.GeoDataFrame:
         st.markdown(Path(self.meshblock_shp).exists())
-        st.mardown(Path(self.meshblock_shp).stat().st_size)
+        st.markdown(Path(self.meshblock_shp).stat().st_size)
         return gpd.read_file(self.meshblock_shp)
 
     def load_districts(self) -> gpd.GeoDataFrame:
