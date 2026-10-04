@@ -135,11 +135,11 @@ def get_tuned_model(X_train, y_train, use_log=True):
     y_train_t = np.log1p(y_train) if use_log else y_train
 
     param_distributions = {
-        "n_estimators": randint(100, 500), #400
-        "max_depth": randint(3, 8), #6
+        "n_estimators": randint(100, 300), #400
+        "max_depth": randint(3, 6), #6
         "learning_rate": uniform(0.01, 0.2),    #0.2
         "subsample": uniform(0.6, 0.4), #0.6
-        "min_samples_split": randint(2, 20),    #9
+        "min_samples_split": randint(2, 10),    #9
         "min_samples_leaf": randint(1, 10), #16
     }
 
@@ -147,8 +147,8 @@ def get_tuned_model(X_train, y_train, use_log=True):
     tscv = TimeSeriesSplit(n_splits=5)
 
     search = RandomizedSearchCV(
-        base, param_distributions, n_iter=60, cv=tscv,
-        scoring="neg_mean_absolute_error", random_state=42, n_jobs=-1,
+        base, param_distributions, n_iter=20, cv=tscv,
+        scoring="neg_mean_absolute_error", random_state=42, n_jobs=2,
     )
     search.fit(X_train, y_train_t)
     return search.best_estimator_, search.best_params_
