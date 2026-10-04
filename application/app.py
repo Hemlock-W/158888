@@ -260,7 +260,7 @@ if st.session_state["data_ok"] == True:
     # --------------------------------------------------------------------------
     # 2. Selection of Model and Division -> Model Forecast
     # --------------------------------------------------------------------------
-    st.header("Model and District Selection")
+    st.header("Model and Division Selection")
     col_sel, col_desc, district_sel, select_button = st.columns([2, 2, 2, 1])
     MODEL_INFO = {
         "Gradient Boosting": {
