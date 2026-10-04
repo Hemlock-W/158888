@@ -86,6 +86,15 @@ def walk_forward_evaluate_series(
 # --------------------------------------------------------------------------
 # 1. Scikit-learn 
 # --------------------------------------------------------------------------
+def _append_forecast_row(history:pd.DataFrame, period, count) -> pd.DataFrame:
+  history = history.copy()
+  history["count"] = history["count"].astype("Float64")
+  new_row = pd.DataFrame({
+      "period": [period],
+      "count": pd.array([count if count is not None else pd.NA], dtype="Float64"),
+  })
+  return pd.concat([history, new_row], ignore_index=True)
+  
 def walk_forward_evaluate(
     df:pd.DataFrame,
     feature_cols:list,
