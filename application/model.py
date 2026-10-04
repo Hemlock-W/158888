@@ -224,9 +224,7 @@ def sklearn_forecast(
     forecasts = []
     for _ in range(n_periods_ahead):
         next_period = history["period"].iloc[-1] + 1
-        temp = pd.concat(
-            [history, pd.DataFrame([{"period": next_period, "count": np.nan}])], ignore_index=True
-        )
+        temp = _append_forecast_row(history, next_period, None)
         temp = build_features(temp, freq=freq)
         x_next = temp[feature_cols].iloc[[-1]]
 
