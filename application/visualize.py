@@ -129,7 +129,7 @@ def plot_stacked_bar(
     value_col:str = "count",
     x_col:str = "district",
     color_col:str = "Occurrence Type Category",
-    title:str = "Crime classification",
+    title:str = "Crime occurrence",
     xtitle:str = "Type of Crime",
     ytitle:str = "Count",
 ):
@@ -195,7 +195,6 @@ def plot_anzsoc_area(
         yaxis_title=ytitle,
         plot_bgcolor="#0e1117",
         paper_bgcolor="#0e1117",
-        font_color="#e0e0e0",
         legend=dict(bgcolor="#161b22", bordercolor="#30363d"),
     )
  
@@ -231,8 +230,6 @@ def plot_anzsoc_treemap(
         title=title,
         xaxis_title=xtitle,
         yaxis_title=ytitle,
-        plot_bgcolor="#0e1117",
-        paper_bgcolor="#0e1117",
         font_color="#e0e0e0",
         legend=dict(bgcolor="#161b22", bordercolor="#30363d"),
     )
