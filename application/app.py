@@ -405,11 +405,11 @@ if st.session_state["data_ok"] == True:
                 font_color="#e0e0e0",
                 legend=dict(bgcolor="#161b22", bordercolor="#30363d")
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             st.dataframe(
                 forecast_plot,
-                use_container_width=True,
+                width='stretch',
             )
         with tab2:
             hist = forecast_result["holdout"]
@@ -436,7 +436,7 @@ if st.session_state["data_ok"] == True:
                 font_color="#ebe9e9",
                 legend=dict(bgcolor="#566b88", bordercolor="#30363d"),
             )
-            st.plotly_chart(fig1, use_container_width=True)
+            st.plotly_chart(fig1, width='stretch')
 
     # --------------------------------------------------------------------------
     # 4. Exploratory Data Analysis 
@@ -451,48 +451,48 @@ if st.session_state["data_ok"] == True:
     if st.session_state["data_chosen"] == "RCVS - District":
         tabA, tabB = st.tabs(["Rate Matrix", "Rate Choropleth"])
         with tabA:
-            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"]), use_container_width=True)
+            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"]), width='stretch')
         with tabB:
-            st.pyplot(plot_rate_choropleth(boundary_district, built_table["rate_per_capita"]), use_container_width=True)
+            st.pyplot(plot_rate_choropleth(boundary_district, built_table["rate_per_capita"]), width='stretch')
     elif st.session_state["data_chosen"] == "RCOS - District":
         tabA, tabB = st.tabs(["Rate Matrix", "Rate Choropleth"])
         with tabA:
-            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district"), use_container_width=True)
+            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district"), width='stretch')
         with tabB:
-            st.pyplot(plot_rate_choropleth(boundary_district, built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district"), use_container_width=True)
+            st.pyplot(plot_rate_choropleth(boundary_district, built_table["rate_per_capita"], title="Offender rate per 10,000 people — by district"), width='stretch')
     elif st.session_state["data_chosen"] == "RCVS - Anzsoc":
         tabA, tabB, tabC = st.tabs(["Bar Chart", "Rate Matrix", "Area Chart"])
         with tabA:
-            st.plotly_chart(plot_anzsoc_bar(built_table["rate_per_capita"]), use_container_width=True)
+            st.plotly_chart(plot_anzsoc_bar(built_table["rate_per_capita"]), width='stretch')
         with tabB:
-            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - victim", ytitle="Type of Crime"), use_container_width=True)       
+            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - victim", ytitle="Type of Crime"), width='stretch')       
         with tabC:
-            st.plotly_chart(plot_anzsoc_area(built_table["rate_per_capita"]), use_container_width=True)
+            st.plotly_chart(plot_anzsoc_area(built_table["rate_per_capita"]), width='stretch')
     elif st.session_state["data_chosen"] == "RCOS - Anzsoc":
         tabA, tabB, tabC = st.tabs(["Bar Chart", "Rate Matrix", "Area Chart"])
         with tabA:
-            st.plotly_chart(plot_anzsoc_bar(built_table["rate_per_capita"], title="Crime classification - offender"), use_container_width=True)
+            st.plotly_chart(plot_anzsoc_bar(built_table["rate_per_capita"], title="Crime classification - offender"), width='stretch')
         with tabB:
-            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - offender", ytitle="Type of Crime"), use_container_width=True)   
+            st.plotly_chart(plot_rate_matrix(built_table["rate_per_capita"], value_col="count", title="Crime classification - offender", ytitle="Type of Crime"), width='stretch')   
         with tabC:
-            st.plotly_chart(plot_anzsoc_area(built_table["rate_per_capita"], title="Crime classification - offender"), use_container_width=True)   
+            st.plotly_chart(plot_anzsoc_area(built_table["rate_per_capita"], title="Crime classification - offender"), width='stretch')   
     
 
     # Data and statistics toggle
     columns_to_keep = ['district', 'count', 'period', 'year', 'population', 'rate_per_capita']
     built_table["short_df"] = built_table["rate_per_capita"][columns_to_keep]
     with st.expander(f"Data Viewer ({st.session_state['data_chosen']})"):
-        st.dataframe(built_table["short_df"], use_container_width=True, height=420)
+        st.dataframe(built_table["short_df"], width='stretch', height=420)
     with st.expander("Summary Statistics"):
-        st.dataframe(built_table["short_df"].describe().T, use_container_width=True)
+        st.dataframe(built_table["short_df"].describe().T, width='stretch')
 
     st.divider()
 
     st.header("Exploratory Data")
     fig_1 = plot_stacked_bar(activity_tables["Occ Type.csv"])
-    st.plotly_chart(fig_1, use_container_width=True)
+    st.plotly_chart(fig_1, width='stretch')
 
     fig_2 = plot_anzsoc_treemap(st.session_state["act_tableB"])
-    st.plotly_chart(fig_2, use_container_width=True)
+    st.plotly_chart(fig_2, width='stretch')
 
 
