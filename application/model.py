@@ -144,19 +144,19 @@ def get_tuned_model(X_train, y_train, use_log=True):
     y_train_t = np.log1p(y_train) if use_log else y_train
 
     param_distributions = {
-        "n_estimators": 400, #randint(100, 300),
-        "max_depth": 6, #randint(3, 6),
-        "learning_rate": 0.2, #uniform(0.01, 0.2),
-        "subsample": 0.6, #uniform(0.6, 0.4),
-        "min_samples_split": 9, #randint(2, 10),
-        "min_samples_leaf": 16, #randint(1, 10),
+      "n_estimators": [400],
+      "max_depth": [6],
+      "learning_rate": [0.2],
+      "subsample": [0.6],
+      "min_samples_split": [9],
+      "min_samples_leaf": [16],
     }
 
     base = GradientBoostingRegressor(random_state=42)
     tscv = TimeSeriesSplit(n_splits=5)
 
     search = RandomizedSearchCV(
-        base, param_distributions, n_iter=5, cv=tscv,
+        base, param_distributions, cv=tscv,
         scoring="neg_mean_absolute_error", random_state=42, n_jobs=2,
     )
     search.fit(X_train, y_train_t)
